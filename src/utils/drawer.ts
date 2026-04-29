@@ -391,7 +391,7 @@ export const drawLayout = (
       const boxY = yPos - boxH / 2;
 
       // 1. Draw back side block
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#000000";
       ctx.strokeStyle = isHovered ? "rgba(16, 185, 129, 1)" : "#000000";
       ctx.lineWidth = isHovered ? 2 : 1;
 
@@ -770,7 +770,7 @@ export const drawLayout = (
     const isCutToFit = phase.red.isCutToFit;
     ctx.fillStyle = isCutToFit ? "#e5e7eb" : RENDER_CONFIG.COLORS.RED_RAIL;
     ctx.strokeStyle = isCutToFit ? "#9ca3af" : RENDER_CONFIG.COLORS.BLACK;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.fillRect(leftPx, redY - RAIL_H / 2, width, RAIL_H);
     ctx.strokeRect(leftPx, redY - RAIL_H / 2, width, RAIL_H);
 
@@ -1005,7 +1005,7 @@ export const drawLayout = (
     const isCutToFit = phase.blue.isCutToFit;
     ctx.fillStyle = isCutToFit ? "#e5e7eb" : RENDER_CONFIG.COLORS.BLUE_RAIL;
     ctx.strokeStyle = isCutToFit ? "#9ca3af" : RENDER_CONFIG.COLORS.BLACK;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     ctx.fillRect(leftPx, blueY - RAIL_H / 2, width, RAIL_H);
     ctx.strokeRect(leftPx, blueY - RAIL_H / 2, width, RAIL_H);
 

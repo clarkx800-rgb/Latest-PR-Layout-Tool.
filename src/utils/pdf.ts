@@ -69,13 +69,18 @@ export const generatePdf = (state: AppState): jsPDF => {
     doc.setFont('helvetica', 'normal');
     
     // Red / Blue totals
-    const rTot = phase.red.isCutToFit ? `ON-SITE-CUT ≯${getCutToFitLength(phase.red.totalMm)}` : phase.red.totalMm.toFixed(1);
-    const bTot = phase.blue.isCutToFit ? `ON-SITE-CUT ≯${getCutToFitLength(phase.blue.totalMm)}` : phase.blue.totalMm.toFixed(1);
+    const rText = phase.red.isCutToFit 
+      ? `(+) RED RAIL: ON-SITE-CUT ≯${getCutToFitLength(phase.red.totalMm)} mm` 
+      : `(+) RED RAIL: ${phase.red.totalMm.toFixed(1)} mm`;
+    
+    const bText = phase.blue.isCutToFit 
+      ? `(-) BLUE RAIL: ${getCutToFitLength(phase.blue.totalMm)} mm *CUT-ON-SITE*` 
+      : `(-) BLUE RAIL: ${phase.blue.totalMm.toFixed(1)} mm`;
 
     doc.setTextColor(220, 38, 38); // Red
-    doc.text(`(+) RED RAIL: ${rTot} mm`, margin + contentWidth - 5, margin + 15, { align: 'right' });
+    doc.text(rText, margin + contentWidth - 5, margin + 15, { align: 'right' });
     doc.setTextColor(37, 99, 235); // Blue
-    doc.text(`(-) BLUE RAIL: ${bTot} mm`, margin + contentWidth - 5, margin + 21, { align: 'right' });
+    doc.text(bText, margin + contentWidth - 5, margin + 21, { align: 'right' });
     doc.setTextColor(0);
 
     // ==========================================

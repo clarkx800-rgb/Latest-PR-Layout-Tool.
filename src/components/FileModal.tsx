@@ -115,9 +115,9 @@ export const FileModal = ({ isOpen, onClose, state, onLoad, preloadedPdfData }: 
             </button>
           </div>
 
-          <div className="flex-1 overflow-hidden flex flex-col md:flex-row" style={{ paddingTop: '14px', paddingBottom: '10px', marginBottom: '-2px' }}>
+          <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col landscape:flex-row md:flex-row" style={{ paddingTop: '14px', paddingBottom: '10px', marginBottom: '-2px' }}>
             {/* PDF Preview Area */}
-            <div className="flex-1 bg-zinc-200 border-r border-zinc-200 p-4 overflow-hidden relative">
+            <div className="flex-1 min-h-[300px] landscape:min-h-0 md:min-h-0 bg-zinc-200 border-r border-zinc-200 p-4 overflow-hidden relative">
               {pdfData ? (
                 <div className="w-full h-full rounded shadow-sm overflow-hidden bg-white">
                   <PdfViewer pdfData={pdfData} />
@@ -128,7 +128,7 @@ export const FileModal = ({ isOpen, onClose, state, onLoad, preloadedPdfData }: 
             </div>
 
             {/* Actions Area */}
-            <div className="w-full md:w-80 p-6 shrink-0 bg-white flex flex-col gap-6 overflow-y-auto">
+            <div className="w-full md:w-80 landscape:w-80 p-6 shrink-0 bg-white flex flex-col gap-6 overflow-y-auto">
               <div className="space-y-4">
                 <h4 className="font-bold text-sm text-zinc-500 uppercase tracking-widest border-b pb-2">Export Document</h4>
                 <p className="text-sm text-zinc-600">Download the shop report containing the layouts and notes for all sections.</p>
