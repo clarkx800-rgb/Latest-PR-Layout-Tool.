@@ -3,8 +3,9 @@ import { type AppState } from '../types';
 import { drawLayout } from './drawer';
 import { LayoutMath, getCutToFitLength } from './math';
 import { RENDER_CONFIG, DEFAULT_ZOOM, DEFAULT_PAN_X, DEFAULT_PAN_Y } from '../constants';
+import { formatMeasurement, type Unit } from './units';
 
-export const generatePdf = (state: AppState): jsPDF => {
+export const generatePdf = (state: AppState, unit?: Unit): jsPDF => {
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -107,12 +108,12 @@ export const generatePdf = (state: AppState): jsPDF => {
     
     // Red / Blue totals
     const rText = phase.red.isCutToFit 
-      ? `(+) RED RAIL: ON-SITE-CUT ≯${getCutToFitLength(phase.red.totalMm)} mm` 
-      : `(+) RED RAIL: ${phase.red.totalMm.toFixed(1)} mm`;
+      ? `(+) RED RAIL: ON-SITE-CUT ≯${formatMeasurement(getCutToFitLength(phase.red.totalMm), unit)}` 
+      : `(+) RED RAIL: ${formatMeasurement(phase.red.totalMm, unit)}`;
     
     const bText = phase.blue.isCutToFit 
-      ? `(-) BLUE RAIL: ${getCutToFitLength(phase.blue.totalMm)} mm *CUT-ON-SITE*` 
-      : `(-) BLUE RAIL: ${phase.blue.totalMm.toFixed(1)} mm`;
+      ? `(-) BLUE RAIL: ${formatMeasurement(getCutToFitLength(phase.blue.totalMm), unit)} *CUT-ON-SITE*` 
+      : `(-) BLUE RAIL: ${formatMeasurement(phase.blue.totalMm, unit)}`;
 
     doc.setTextColor(220, 38, 38); // Red
     doc.text(rText, margin + contentWidth - 5, margin + 15, { align: 'right' });
@@ -152,7 +153,11 @@ export const generatePdf = (state: AppState): jsPDF => {
         null,
         !!state.indicatorsFlipped,
         i,
-        state.phases.length
+        state.phases.length,
+        state.wo,
+        state.ts,
+        state.subSub,
+        unit
       );
       
       const imgData = canvas.toDataURL('image/png', 1.0);

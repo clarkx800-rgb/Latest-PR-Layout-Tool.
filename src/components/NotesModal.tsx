@@ -1,4 +1,3 @@
-import { PwaUpdater } from './PwaUpdater';
 import { X, FileText, CheckCircle2 } from 'lucide-react';
 import { type Phase, type AppState } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -33,7 +32,6 @@ export const NotesModal = ({ isOpen, onClose, phase, updatePhase, state, updateS
               <h3 className="font-bold uppercase tracking-wider text-sm">Notes: Section {state.activeIndex + 1}</h3>
             </div>
             <div className="flex items-center gap-3">
-              <PwaUpdater />
               <button 
                 onClick={onClose} 
                 disabled={!isValid}
@@ -65,8 +63,8 @@ export const NotesModal = ({ isOpen, onClose, phase, updatePhase, state, updateS
                  name="ts-input"
                  type="text"
                  value={state.ts || ''}
-                 onChange={(e) => updateState(s => ({ ...s, ts: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                 placeholder="REQUIRED (####)"
+                 onChange={(e) => updateState(s => ({ ...s, ts: e.target.value.replace(/[^0-9\s-]/g, '').slice(0, 11) }))}
+                 placeholder="EX: 1000-1005"
                  className="w-full bg-zinc-50 border border-zinc-300 rounded-lg px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all uppercase placeholder:text-zinc-400"
                />
             </div>
@@ -79,7 +77,7 @@ export const NotesModal = ({ isOpen, onClose, phase, updatePhase, state, updateS
                  type="text"
                  value={state.subSub || ''}
                  onChange={(e) => updateState(s => ({ ...s, subSub: e.target.value.toUpperCase() }))}
-                 placeholder="REQUIRED (EX: JYZ)"
+                 placeholder="(EX: JYZ-NAZ or JYZ-NAZ to NAZ-BWZ-IB)"
                  className="w-full bg-zinc-50 border border-zinc-300 rounded-lg px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all uppercase placeholder:text-zinc-400"
                />
             </div>
@@ -87,7 +85,7 @@ export const NotesModal = ({ isOpen, onClose, phase, updatePhase, state, updateS
 
           {!isValid && (
             <div className="px-4 pt-4 text-xs font-bold text-red-600 text-center uppercase shrink-0">
-              Please fill in all details (WO, TS, and Sub-sub) to continue.
+              Fill in all details (WO, TS, and Sub-sub) to continue.
             </div>
           )}
 
@@ -98,12 +96,13 @@ export const NotesModal = ({ isOpen, onClose, phase, updatePhase, state, updateS
               aria-label="Comments"
               value={phase.comments}
               onChange={(e) => updatePhase(p => { p.comments = e.target.value.toUpperCase(); })}
-              placeholder="TYPE TECHNICIAN COMMENTS, SITE OBSERVATIONS, OR SHOP ASSEMBLY NOTES HERE..."
+              placeholder="COMMENTS, SITE OBSERVATIONS, OR SHOP ASSEMBLY NOTES HERE..."
               className="flex-1 min-h-0 w-full bg-zinc-50 border border-zinc-200 rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900/5 transition-all text-sm leading-relaxed uppercase"
             />
           </div>
 
-          <div className="p-4 flex justify-end shrink-0">
+          <div className="p-4 flex justify-between items-center shrink-0">
+             <span className="text-[#3b82f6] text-base font-medium"> 💀 This app is optional. Go scribble.</span>
              <button
                 onClick={onClose}
                 disabled={!isValid}

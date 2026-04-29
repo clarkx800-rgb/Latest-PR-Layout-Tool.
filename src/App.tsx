@@ -18,6 +18,7 @@ import { LayoutModal } from './components/LayoutModal';
 import { NotesModal } from './components/NotesModal';
 import { FileModal } from './components/FileModal';
 import { BottomBar } from './components/BottomBar';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { PortraitWarning } from './components/PortraitWarning';
 import { Plus, Minus, Target, Eye, EyeOff, Trash2, Focus, Undo2, X, MonitorSmartphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -183,7 +184,7 @@ export default function App() {
     // Then synchronously map the PDF (which will block the thread for a moment)
     setTimeout(async () => {
       try {
-        const doc = generatePdf(state);
+        const doc = generatePdf(state, prefs?.unit);
         const dataUri = doc.output('datauristring');
         
         clearInterval(interval);
@@ -376,6 +377,7 @@ export default function App() {
                   setState(s => ({ ...s, activeIndex: s.activeIndex + 1 }));
                 }
               }}
+              prefs={prefs}
             />
           </motion.div>
         </AnimatePresence>
@@ -410,6 +412,7 @@ export default function App() {
         <div style={uiZoomStyle} className="absolute bottom-2 left-2 right-2 z-40 pointer-events-none transition-all duration-300">
           <BottomBar 
             state={state}
+            prefs={prefs}
             onPrev={() => {
                setNavDirection(-1);
                setState(s => ({ ...s, activeIndex: Math.max(0, s.activeIndex - 1) }));
@@ -468,6 +471,7 @@ export default function App() {
         state={state}
         onLoad={(newState) => setState(newState)}
         preloadedPdfData={preloadedPdfData}
+        prefs={prefs}
       />
 
       {/* Export Loading Window */}
@@ -601,6 +605,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      <UpdatePrompt />
     </div>
   );
 }

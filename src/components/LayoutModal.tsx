@@ -367,6 +367,27 @@ export const LayoutModal = ({
                           )}
                         </div>
                       </div>
+                      <div className="flex items-center justify-between gap-4 mt-3">
+                        <div className="text-[10px] font-bold text-zinc-500 uppercase whitespace-nowrap min-w-[70px]">
+                          Units
+                        </div>
+                        <div className="flex bg-zinc-200/50 p-0.5 rounded border border-zinc-200 w-full max-w-[120px]">
+                          {(["mm", "imperial"] as const).map(
+                            (u) => (
+                              <button
+                                key={u}
+                                type="button"
+                                onClick={() =>
+                                  setPrefs((p: any) => ({ ...p, unit: u }))
+                                }
+                                className={`flex-1 text-[9px] sm:text-[10px] py-1 sm:py-1.5 rounded-[3px] font-bold transition-all uppercase ${(prefs.unit || 'mm') === u ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
+                              >
+                                {u === 'imperial' ? 'Imp' : 'mm'}
+                              </button>
+                            ),
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1065,6 +1086,45 @@ export const LayoutModal = ({
                 </div>
               </div>
             </div>
+          </div>
+          
+          <div className="p-3 border-t bg-zinc-50 flex justify-between items-center sm:hidden">
+            <span className="text-[10px] text-zinc-400">Settings</span>
+            <button
+               type="button"
+               onClick={() => {
+                 if ('serviceWorker' in navigator) {
+                   navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                     for(let registration of registrations) { registration.unregister(); }
+                     window.location.reload();
+                   });
+                 } else {
+                   window.location.reload();
+                 }
+               }}
+               className="text-[10px] font-bold px-3 py-1.5 rounded border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 transition-colors bg-white shadow-sm"
+            >
+               Force Refresh App
+            </button>
+          </div>
+          <div className="p-3 border-t bg-zinc-50 hidden sm:flex justify-between items-center">
+             <span className="text-xs text-zinc-400 font-medium">Configure rail settings globally and per section.</span>
+             <button
+               type="button"
+               onClick={() => {
+                 if ('serviceWorker' in navigator) {
+                   navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                     for(let registration of registrations) { registration.unregister(); }
+                     window.location.reload();
+                   });
+                 } else {
+                   window.location.reload();
+                 }
+               }}
+               className="text-xs font-bold px-3 py-1.5 rounded border border-zinc-300 text-zinc-600 bg-white hover:text-zinc-900 hover:bg-zinc-100 transition-colors shadow-sm"
+            >
+               Hard Refresh / Update App
+            </button>
           </div>
         </motion.div>
       </div>

@@ -15,9 +15,10 @@ interface FileModalProps {
   state: AppState;
   onLoad: (state: AppState) => void;
   preloadedPdfData?: string | null;
+  prefs?: any;
 }
 
-export const FileModal = ({ isOpen, onClose, state, onLoad, preloadedPdfData }: FileModalProps) => {
+export const FileModal = ({ isOpen, onClose, state, onLoad, preloadedPdfData, prefs }: FileModalProps) => {
   const [pdfData, setPdfData] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export const FileModal = ({ isOpen, onClose, state, onLoad, preloadedPdfData }: 
         setPdfData(preloadedPdfData);
       } else {
         try {
-          const doc = generatePdf(state);
+          const doc = generatePdf(state, prefs?.unit);
           // Using datauristring to avoid strict cross-origin web worker blob blocking
           const dataUri = doc.output('datauristring');
           setPdfData(dataUri);
@@ -90,7 +91,7 @@ export const FileModal = ({ isOpen, onClose, state, onLoad, preloadedPdfData }: 
   };
 
   const handleExportPdf = () => {
-    const doc = generatePdf(state);
+    const doc = generatePdf(state, prefs?.unit);
     const tsFormat = state.ts ? state.ts.toString().padStart(4, '0') : 'XXXX';
     const dateStr = new Date().toISOString().slice(0, 10);
     doc.save(`TS-${tsFormat}-${dateStr}.pdf`);

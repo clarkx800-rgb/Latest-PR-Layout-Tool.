@@ -20,11 +20,12 @@ interface BottomBarProps {
   onTogglePosts?: () => void;
   onUndo?: () => void;
   canUndo?: boolean;
+  prefs?: any;
 }
 
 export const BottomBar = ({ 
   state, onPrev, onNext, onAddPhase, onDeletePhaseRequest, onOpenLayout, onOpenNotes, onOpenFile, onAutoFit, onReset,
-  onToggleRTL, onTogglePosts, onUndo, canUndo
+  onToggleRTL, onTogglePosts, onUndo, canUndo, prefs
 }: BottomBarProps) => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -54,7 +55,7 @@ export const BottomBar = ({
       setPdfData(null); // Clear previous data
       const timer = setTimeout(() => {
         try {
-          const doc = generatePdf(state);
+          const doc = generatePdf(state, prefs?.unit);
           // Using datauristring avoids strict cross-origin web worker blob blocking
           // and transfers seamlessly to react-pdf Document.
           const dataUri = doc.output('datauristring');

@@ -23,6 +23,7 @@ interface CanvasLayoutProps {
   updateState: (updater: (s: AppState) => AppState) => void;
   onNavPrev?: () => void;
   onNavNext?: () => void;
+  prefs?: any;
 }
 
 export const CanvasLayout = ({
@@ -33,6 +34,7 @@ export const CanvasLayout = ({
   updateState,
   onNavPrev,
   onNavNext,
+  prefs,
 }: CanvasLayoutProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -231,6 +233,7 @@ export const CanvasLayout = ({
       state.wo,
       state.ts,
       state.subSub,
+      prefs?.unit,
     );
   }, [
     phase,

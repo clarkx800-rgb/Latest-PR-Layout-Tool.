@@ -1,6 +1,7 @@
 import { type Phase, type Hitbox, type HitboxType } from "../types";
 import { RENDER_CONFIG } from "../constants";
 import { getCutToFitLength } from "./math";
+import { formatMeasurement, type Unit } from "./units";
 
 export const getVisualMm = (mm: number, p: Phase) => {
   return mm;
@@ -207,6 +208,7 @@ export const drawLayout = (
   wo?: string,
   ts?: string,
   subSub?: string,
+  unit?: Unit,
 ) => {
   // Clear and draw background
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -856,7 +858,7 @@ export const drawLayout = (
           rsPx,
           edgePx,
           redGapY,
-          `${phase.red.startMm > 0 ? "+" : ""}${phase.red.startMm.toFixed(0)} mm`,
+          `${phase.red.startMm > 0 ? "+" : ""}${formatMeasurement(phase.red.startMm, unit)}`,
           RENDER_CONFIG.COLORS.RED_RAIL,
           {
             hitboxes,
@@ -876,7 +878,7 @@ export const drawLayout = (
           rePx,
           edgePx,
           redGapY,
-          `${phase.red.endMm > 0 ? "+" : ""}${phase.red.endMm.toFixed(0)} mm`,
+          `${phase.red.endMm > 0 ? "+" : ""}${formatMeasurement(phase.red.endMm, unit)}`,
           RENDER_CONFIG.COLORS.RED_RAIL,
           {
             hitboxes,
@@ -906,8 +908,8 @@ export const drawLayout = (
       ? getCutToFitLength(phase.red.totalMm)
       : phase.red.totalMm;
     const redTotalText = isCutToFit
-      ? `(+) ON-SITE-CUT ≯${roundedTotalRed} mm`
-      : `(+) Total: ${phase.red.totalMm.toFixed(0)} mm`;
+      ? `(+) ON-SITE-CUT ≯${formatMeasurement(roundedTotalRed, unit)}`
+      : `(+) Total: ${formatMeasurement(phase.red.totalMm, unit)}`;
 
     drawDim(
       ctx,
@@ -1100,7 +1102,7 @@ export const drawLayout = (
           bsPx,
           edgePx,
           blueGapY,
-          `${phase.blue.startMm > 0 ? "+" : ""}${phase.blue.startMm.toFixed(0)} mm`,
+          `${phase.blue.startMm > 0 ? "+" : ""}${formatMeasurement(phase.blue.startMm, unit)}`,
           RENDER_CONFIG.COLORS.BLUE_RAIL,
           {
             hitboxes,
@@ -1132,7 +1134,7 @@ export const drawLayout = (
           bePx,
           edgePx,
           blueGapY,
-          `${phase.blue.endMm > 0 ? "+" : ""}${phase.blue.endMm.toFixed(0)} mm`,
+          `${phase.blue.endMm > 0 ? "+" : ""}${formatMeasurement(phase.blue.endMm, unit)}`,
           RENDER_CONFIG.COLORS.BLUE_RAIL,
           {
             hitboxes,
@@ -1163,8 +1165,8 @@ export const drawLayout = (
       ? getCutToFitLength(phase.blue.totalMm)
       : phase.blue.totalMm;
     const blueTotalText = isCutToFit
-      ? `(-) ON-SITE-CUT ≯${roundedTotalBlue} mm`
-      : `(-) Total: ${phase.blue.totalMm.toFixed(0)} mm`;
+      ? `(-) ON-SITE-CUT ≯${formatMeasurement(roundedTotalBlue, unit)}`
+      : `(-) Total: ${formatMeasurement(phase.blue.totalMm, unit)}`;
 
     drawDim(
       ctx,
@@ -1330,7 +1332,7 @@ export const drawLayout = (
     ctx.stroke();
     ctx.setLineDash([]);
 
-    let dimText = `${l.dist}mm`;
+    let dimText = `${formatMeasurement(l.dist, unit)}`;
     if (l.type === "ground") dimText += " (GS Cable)";
     else if (l.type === "blue-light") dimText += " (Blue Light)";
     else dimText += ` (${l.type}-Lug)`;

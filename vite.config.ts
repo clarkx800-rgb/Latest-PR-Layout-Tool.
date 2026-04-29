@@ -11,9 +11,9 @@ export default defineConfig(({mode}) => {
       react(), 
       tailwindcss(),
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         devOptions: {
-          enabled: false
+          enabled: true
         },
         includeAssets: ['icon-192.png', 'icon-512.png'],
         manifest: {
@@ -33,12 +33,13 @@ export default defineConfig(({mode}) => {
             {
               src: "icon-512.png",
               sizes: "512x512",
-              type: "image/png"
+              type: "image/png",
+              purpose: "any maskable"
             }
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm,mjs}']
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}']
         }
       })
     ],

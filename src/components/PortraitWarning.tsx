@@ -1,4 +1,3 @@
-import { PwaUpdater } from './PwaUpdater';
 import { Smartphone, RotateCw, FileText } from 'lucide-react';
 import { type Phase, type AppState } from '../types';
 
@@ -54,7 +53,6 @@ export const PortraitWarning = ({ phase, updatePhase, state, updateState }: Port
             <h3 className="font-bold uppercase tracking-wider text-sm">Notes: Section {state.activeIndex + 1}</h3>
           </div>
           <div className="flex items-center gap-3">
-            <PwaUpdater />
           </div>
         </div>
 
@@ -79,8 +77,8 @@ export const PortraitWarning = ({ phase, updatePhase, state, updateState }: Port
                 name="pw-ts-input"
                 type="text"
                 value={state.ts || ''}
-                onChange={(e) => updateState(s => ({ ...s, ts: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                placeholder="REQUIRED (####)"
+                onChange={(e) => updateState(s => ({ ...s, ts: e.target.value.replace(/[^0-9\s-]/g, '').slice(0, 11) }))}
+                placeholder="EX: 1000-1005"
                 className="w-full bg-zinc-50 border border-zinc-300 rounded-lg px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all uppercase placeholder:text-zinc-400"
               />
           </div>
