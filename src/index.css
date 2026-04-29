@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  html, body, #root {
+    @apply h-full w-full overflow-hidden antialiased;
+    background-color: #1a1a1a;
+  }
+}
+
+@layer components {
+  .portrait-lock {
+    @apply fixed inset-0 z-[9999] flex flex-col items-center justify-start overflow-y-auto bg-zinc-950 text-white p-6 lg:hidden;
+  }
+
+  @media (orientation: landscape) {
+    .portrait-lock {
+      @apply hidden;
+    }
+  }
+
+  .glass-panel {
+    @apply bg-black/60 backdrop-blur-md border border-white/10 shadow-2xl;
+  }
+
+  .canvas-container {
+    @apply relative flex-1 flex items-center justify-center overflow-hidden;
+    touch-action: none;
+  }
+}
+
+/* Custom scrollbar for modals */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-zinc-700/50 rounded-full;
+}
+@layer utilities {
+  .animate-spin-slow {
+    animation: spin 8s linear infinite;
+  }
+  .animate-phone-rotate {
+    animation: phone-rotate 3s ease-in-out infinite;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes phone-rotate {
+  0%, 15% {
+    transform: rotate(0deg);
+  }
+  35%, 85% {
+    transform: rotate(90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+

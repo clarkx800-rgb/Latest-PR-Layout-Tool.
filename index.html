@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Power Rail Layout Tool" />
+    <meta property="og:description" content="A precision drafting tool for visualizing power rail layouts, measuring repair components, and generating technician shop reports." />
+    <!-- Replace this with a real image URL when you have one -->
+    <meta property="og:image" content="/icon-512.png" />
+    <meta property="og:url" content="/" />
+    <meta property="og:type" content="website" />
+    
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <title>Power Rail Layout Tool</title>
+  </head>
+  <body class="bg-zinc-950">
+    <div id="error-log" style="color: white; padding: 20px; font-family: monospace; white-space: pre-wrap; z-index: 99999; position: absolute; pointer-events: none;"></div>
+    <script>
+      window.addEventListener('error', function(e) {
+        document.getElementById('error-log').innerText += e.message + '\n' + (e.error ? e.error.stack : '') + '\n';
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        document.getElementById('error-log').innerText += e.reason + '\n';
+      });
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
