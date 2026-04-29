@@ -402,7 +402,7 @@ export const drawLayout = (
       const cutW = 20; 
       ctx.fillStyle = "rgba(249, 115, 22, 1)"; // orange
       ctx.strokeStyle = isHovered ? "rgba(16, 185, 129, 1)" : "#000000";
-      ctx.lineWidth = isHovered ? 2 : 1;
+      ctx.lineWidth = 1;
       
       // We will draw it as two polygons so they fit together
       // Left part polygon
@@ -423,6 +423,13 @@ export const drawLayout = (
       ctx.lineTo(centerX - cutW / 2, drawY + visualH);
       ctx.closePath();
       ctx.fill();
+      ctx.stroke();
+
+      // Draw the diagonal cut only, 4px thick
+      ctx.beginPath();
+      ctx.moveTo(centerX + cutW / 2, drawY);
+      ctx.lineTo(centerX - cutW / 2, drawY + visualH);
+      ctx.lineWidth = 4;
       ctx.stroke();
 
     } else if (isGradient) {
@@ -524,12 +531,12 @@ export const drawLayout = (
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     // Place text at the "solid" side of the block or center of normal block
-    const textX =
-      isGradient && text !== "RAMP"
-        ? isLeftwards
-          ? currentAnchor - 40
-          : currentAnchor + 40
-        : centerX;
+    let textX = centerX;
+    if (isExp) {
+      textX = isLeftwards ? currentAnchor - 40 : currentAnchor + 40;
+    } else if (isGradient && text !== "RAMP") {
+      textX = isLeftwards ? currentAnchor - 40 : currentAnchor + 40;
+    }
     const displayText = text === "RAMP" ? "R A M P" : text;
     ctx.fillText(displayText, textX, yPos);
     ctx.restore();
