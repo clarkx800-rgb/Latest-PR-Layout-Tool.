@@ -38,17 +38,54 @@ export const generatePdf = (state: AppState): jsPDF => {
     // ==========================================
     doc.rect(margin, margin, contentWidth, 25); // Header Box
     
-    // Left side: Logo / Company Name
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text('POWER RAIL LAYOUT', margin + 5, margin + 8);
+    // Left side: Details
+    doc.setFontSize(11);
     
-    // Sub-title details
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`TS: ${state.ts || 'N/A'}`, margin + 5, margin + 15);
-    doc.text(`Sub-sub: ${state.subSub || 'N/A'}`, margin + 45, margin + 15);
-    doc.text(`Work Order: ${state.wo || 'N/A'}`, margin + 5, margin + 21);
+    const y1 = margin + 8;
+    const y2 = margin + 14.5;
+    const y3 = margin + 21;
+
+    // Line 1: Work Order
+    if (state.wo) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Work Order: ${state.wo}`, margin + 5, y1);
+    } else {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Work Order: ', margin + 5, y1);
+      const w1 = doc.getTextWidth('Work Order: ');
+      doc.setFont('helvetica', 'italic');
+      doc.text('Not filled', margin + 5 + w1, y1);
+    }
+
+    // Line 2: Sub-sub
+    if (state.subSub) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Sub-sub: ', margin + 5, y2);
+      const w2 = doc.getTextWidth('Sub-sub: ');
+      doc.setFont('helvetica', 'normal');
+      doc.text(state.subSub, margin + 5 + w2, y2);
+    } else {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Sub-sub: ', margin + 5, y2);
+      const w2 = doc.getTextWidth('Sub-sub: ');
+      doc.setFont('helvetica', 'italic');
+      doc.text('Not filled', margin + 5 + w2, y2);
+    }
+
+    // Line 3: TS
+    if (state.ts) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('TS: ', margin + 5, y3);
+      const w3 = doc.getTextWidth('TS: ');
+      doc.setFont('helvetica', 'normal');
+      doc.text(state.ts, margin + 5 + w3, y3);
+    } else {
+      doc.setFont('helvetica', 'bold');
+      doc.text('TS: ', margin + 5, y3);
+      const w3 = doc.getTextWidth('TS: ');
+      doc.setFont('helvetica', 'italic');
+      doc.text('Not filled', margin + 5 + w3, y3);
+    }
 
     // Section indicator (Middle)
     doc.setFontSize(18);
