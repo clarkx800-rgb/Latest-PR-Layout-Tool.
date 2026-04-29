@@ -488,8 +488,7 @@ export const CanvasLayout = ({
           tempOverrides?.startMm !== undefined
         ) {
           p.red.startMm = tempOverrides.startMm;
-          p.red.totalMm =
-            p.red.startMm + (endRefAbs - startRefAbs) + p.red.endMm;
+          p.red.totalMm = Math.min(9999, p.red.startMm + (endRefAbs - startRefAbs) + p.red.endMm);
         } else if (
           handleType === "blue-start-handle" &&
           tempOverrides?.startMm !== undefined
@@ -500,8 +499,7 @@ export const CanvasLayout = ({
           tempOverrides?.endMm !== undefined
         ) {
           p.red.endMm = tempOverrides.endMm;
-          p.red.totalMm =
-            p.red.startMm + (endRefAbs - startRefAbs) + p.red.endMm;
+          p.red.totalMm = Math.min(9999, p.red.startMm + (endRefAbs - startRefAbs) + p.red.endMm);
         } else if (
           handleType === "blue-end-handle" &&
           tempOverrides?.endMm !== undefined
@@ -628,11 +626,11 @@ export const CanvasLayout = ({
       const hit = state.hitbox;
       if (hit.type === "red-start") p.red.startMm = val;
       if (hit.type === "red-end") p.red.endMm = val;
-      if (hit.type === "red-total") p.red.totalMm = val;
+      if (hit.type === "red-total") p.red.totalMm = Math.min(9999, val);
       if (hit.type === "blue-start") p.blue.startMm = val;
       if (hit.type === "blue-end") p.blue.endMm = val;
       if (hit.type === "blue-total") {
-        p.blue.totalMm = val;
+        p.blue.totalMm = Math.min(9999, val);
         const startRefIdx =
           typeof p.red.startRefPostIndex === "number"
             ? p.red.startRefPostIndex

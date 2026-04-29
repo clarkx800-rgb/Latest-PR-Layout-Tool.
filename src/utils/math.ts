@@ -1,6 +1,12 @@
 import { type Phase, type AppState } from "../types";
 import { RENDER_CONFIG } from "../constants";
 
+export const getCutToFitLength = (totalMm: number): number => {
+  if (totalMm <= 0) return 0;
+  const rounded = Math.ceil(totalMm / 1000) * 1000;
+  return rounded - totalMm <= 500 ? rounded + 500 : rounded;
+};
+
 export class LayoutMath {
   static calc(phase: Phase) {
     if (

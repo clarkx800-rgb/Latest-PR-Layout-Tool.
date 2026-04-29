@@ -1,5 +1,6 @@
 import { type Phase, type Hitbox, type HitboxType } from "../types";
 import { RENDER_CONFIG } from "../constants";
+import { getCutToFitLength } from "./math";
 
 export const getVisualMm = (mm: number, p: Phase) => {
   return mm;
@@ -96,8 +97,21 @@ const drawDim = (
   const boxY = invert ? y - 4 : y - 40;
   const textY = invert ? y + 6 : y - 6;
 
+  let textWidth = 0;
+  ctx.font = "bold 21px Inter, sans-serif";
+  if (label.includes("≯")) {
+    const parts = label.split("≯");
+    const w1 = ctx.measureText(parts[0]).width;
+    ctx.font = "bold 34px Inter, sans-serif";
+    const wBig = ctx.measureText("≯").width;
+    ctx.font = "bold 21px Inter, sans-serif";
+    const w2 = ctx.measureText(parts[1]).width;
+    textWidth = w1 + wBig + w2;
+  } else {
+    textWidth = ctx.measureText(label).width;
+  }
+
   if (isHovered) {
-    const textWidth = ctx.measureText(label).width;
     ctx.save();
     ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
     ctx.strokeStyle = "#10b981";
@@ -120,17 +134,48 @@ const drawDim = (
     ctx.restore();
   }
 
-  ctx.textAlign = "center";
-  ctx.textBaseline = invert ? "top" : "bottom";
-  ctx.font = "bold 21px Inter, sans-serif";
   ctx.lineWidth = 6;
   ctx.strokeStyle = "rgba(255,255,255,0.9)";
-  ctx.strokeText(label, midX, textY);
-  ctx.fillStyle = isHovered ? "#059669" : color;
-  ctx.fillText(label, midX, textY);
+  ctx.textBaseline = invert ? "top" : "bottom";
+
+  if (label.includes("≯")) {
+    const parts = label.split("≯");
+    const p1 = parts[0];
+    const p2 = parts[1];
+    
+    ctx.font = "bold 21px Inter, sans-serif";
+    const w1 = ctx.measureText(p1).width;
+    ctx.font = "bold 34px Inter, sans-serif";
+    const wBig = ctx.measureText("≯").width;
+    
+    let currX = midX - textWidth / 2;
+    ctx.textAlign = "left";
+    
+    ctx.font = "bold 21px Inter, sans-serif";
+    ctx.strokeText(p1, currX, textY);
+    ctx.fillStyle = isHovered ? "#059669" : color;
+    ctx.fillText(p1, currX, textY);
+    currX += w1;
+    
+    ctx.font = "bold 34px Inter, sans-serif";
+    ctx.strokeText("≯", currX, textY + (invert ? -1 : 3)); 
+    ctx.fillStyle = isHovered ? "#059669" : color;
+    ctx.fillText("≯", currX, textY + (invert ? -1 : 3));
+    currX += wBig;
+    
+    ctx.font = "bold 21px Inter, sans-serif";
+    ctx.strokeText(p2, currX, textY);
+    ctx.fillStyle = isHovered ? "#059669" : color;
+    ctx.fillText(p2, currX, textY);
+  } else {
+    ctx.textAlign = "center";
+    ctx.font = "bold 21px Inter, sans-serif";
+    ctx.strokeText(label, midX, textY);
+    ctx.fillStyle = isHovered ? "#059669" : color;
+    ctx.fillText(label, midX, textY);
+  }
 
   if (hitboxParams) {
-    const textWidth = ctx.measureText(label).width;
     hitboxParams.hitboxes.push({
       id: hitboxParams.id,
       type: hitboxParams.type,
@@ -163,8 +208,6 @@ export const drawLayout = (
   ts?: string,
   subSub?: string,
 ) => {
-  const isoHolesToDraw: { x: number; y: number; r: number }[] = [];
-
   // Clear and draw background
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   ctx.fillStyle = "#ffffff";
@@ -225,7 +268,7 @@ export const drawLayout = (
         ctx.setLineDash([12, 4, 4, 4, 4, 4]);
         ctx.lineWidth = 1.5;
       } else {
-        ctx.fillStyle = isHovered ? "#e0e0e0" : RENDER_CONFIG.COLORS.POST_BG;
+        ctx.fillStyle = isHovered ? "#333333" : RENDER_CONFIG.COLORS.BLACK;
         ctx.strokeStyle = RENDER_CONFIG.COLORS.BLACK;
         ctx.setLineDash([]);
         ctx.lineWidth = 2;
@@ -238,15 +281,15 @@ export const drawLayout = (
           midY - postH / 2,
           POST_W,
           postH,
-          6,
+          2,
         );
       else ctx.rect(px - POST_W / 2, midY - postH / 2, POST_W, postH);
       ctx.fill();
       ctx.stroke();
 
       if (!isGhosted) {
-        const cardH = Math.max(10, SPACING - RAIL_H - 12); // 6px gap top/bottom from rails
-        const cardW = Math.max(30, POST_W * 2.2);
+        const cardH = Math.max(10, SPACING - RAIL_H - 8);
+        const cardW = Math.max(25.2, POST_W * 1.96);
         
         ctx.fillStyle = "#ffffff";
         ctx.strokeStyle = RENDER_CONFIG.COLORS.BLACK;
@@ -254,7 +297,7 @@ export const drawLayout = (
         
         ctx.beginPath();
         if ((ctx as any).roundRect) {
-          (ctx as any).roundRect(px - cardW / 2, midY - cardH / 2, cardW, cardH, 6);
+          (ctx as any).roundRect(px - cardW / 2, midY - cardH / 2, cardW, cardH, 3);
         } else {
           ctx.rect(px - cardW / 2, midY - cardH / 2, cardW, cardH);
         }
@@ -262,7 +305,7 @@ export const drawLayout = (
         ctx.stroke();
 
         ctx.fillStyle = RENDER_CONFIG.COLORS.BLACK;
-        const fontSize = Math.max(12, Math.min(cardH * 0.7, cardW * 0.6));
+        const fontSize = Math.max(14, Math.min(cardH * 0.85, cardW * 0.75));
         ctx.font = `900 ${fontSize}px Inter, sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -307,15 +350,20 @@ export const drawLayout = (
     // but drawing it first (which it is if it's the first attachment, though order is by user array)
     // usually suffices. Let's just draw it with standard overlap.
 
-    const isGradient = text === "EXP" || text === "CIS" || text === "RAMP";
+    const isGradient = text === "CIS" || text === "RAMP";
     const isIso = text === "ISO";
+    const isExp = text === "EXP";
     const baseW = 80;
 
     let logicalW = baseW;
     let visualW = baseW;
     let visualH = RAIL_H;
 
-    if (isGradient) {
+    if (isExp) {
+      logicalW = 3987 * (basePixPerMm || 0.05);
+      visualW = logicalW;
+      visualH = RAIL_H;
+    } else if (isGradient) {
       const extraMM = text === "RAMP" ? 4000 : 500;
       logicalW = baseW + extraMM * (basePixPerMm || 0.05);
       visualW = logicalW;
@@ -334,7 +382,50 @@ export const drawLayout = (
     const drawX = centerX - visualW / 2;
     const drawY = yPos - visualH / 2;
 
-    if (isGradient) {
+    if (isExp) {
+      ctx.setLineDash([]);
+
+      // Ensure block is roughly centered behind the cut
+      const boxW = 800 * (basePixPerMm || 0.05); // Rectangular block size on back side
+      const boxH = RAIL_H * 1.6;
+      const boxY = yPos - boxH / 2;
+
+      // 1. Draw back side block
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = isHovered ? "rgba(16, 185, 129, 1)" : "#000000";
+      ctx.lineWidth = isHovered ? 2 : 1;
+
+      ctx.fillRect(centerX - boxW / 2, boxY, boxW, boxH);
+      ctx.strokeRect(centerX - boxW / 2, boxY, boxW, boxH);
+
+      // 2. Draw solid line rails with a diagonal cut adjoining them
+      const cutW = 20; 
+      ctx.fillStyle = "rgba(249, 115, 22, 1)"; // orange
+      ctx.strokeStyle = isHovered ? "rgba(16, 185, 129, 1)" : "#000000";
+      ctx.lineWidth = isHovered ? 2 : 1;
+      
+      // We will draw it as two polygons so they fit together
+      // Left part polygon
+      ctx.beginPath();
+      ctx.moveTo(drawX, drawY);
+      ctx.lineTo(centerX + cutW / 2, drawY);
+      ctx.lineTo(centerX - cutW / 2, drawY + visualH);
+      ctx.lineTo(drawX, drawY + visualH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Right part polygon
+      ctx.beginPath();
+      ctx.moveTo(centerX + cutW / 2, drawY);
+      ctx.lineTo(drawX + visualW, drawY);
+      ctx.lineTo(drawX + visualW, drawY + visualH);
+      ctx.lineTo(centerX - cutW / 2, drawY + visualH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+    } else if (isGradient) {
       const grad = ctx.createLinearGradient(
         currentAnchor,
         yPos,
@@ -343,13 +434,7 @@ export const drawLayout = (
       );
 
       let startColor, midColor, endColor;
-      if (text === "EXP") {
-        startColor = isHovered
-          ? "rgba(249, 115, 22, 0.2)"
-          : "rgba(249, 115, 22, 0.1)";
-        midColor = startColor;
-        endColor = "rgba(249, 115, 22, 0)";
-      } else if (text === "RAMP") {
+      if (text === "RAMP") {
         const rgb = "225, 113, 43";
         startColor = isHovered ? `rgba(${rgb}, 1)` : `rgba(${rgb}, 1)`;
         midColor = isHovered ? `rgba(${rgb}, 0.5)` : `rgba(${rgb}, 0.5)`;
@@ -375,13 +460,7 @@ export const drawLayout = (
       );
 
       let borderStart, borderMid, borderEnd;
-      if (text === "EXP") {
-        borderStart = isHovered
-          ? "rgba(16, 185, 129, 0.8)"
-          : "rgba(0, 0, 0, 1)";
-        borderMid = borderStart;
-        borderEnd = "rgba(0, 0, 0, 0)";
-      } else if (text === "RAMP") {
+      if (text === "RAMP") {
         borderStart = isHovered ? "rgba(16, 185, 129, 1)" : "rgba(0, 0, 0, 1)";
         borderMid = isHovered
           ? "rgba(16, 185, 129, 0.5)"
@@ -418,16 +497,18 @@ export const drawLayout = (
       }
     }
 
-    if (text === "RAMP" || isIso) {
-      ctx.setLineDash([]);
-    } else {
-      ctx.setLineDash([5, 5]);
-    }
-    ctx.lineWidth = isHovered ? 3 : 2;
+    if (!isExp) {
+      if (text === "RAMP" || isIso) {
+        ctx.setLineDash([]);
+      } else {
+        ctx.setLineDash([5, 5]);
+      }
+      ctx.lineWidth = isHovered ? 3 : 2;
 
-    // Draw the box using visual constraints
-    ctx.fillRect(drawX, drawY, visualW, visualH);
-    ctx.strokeRect(drawX, drawY, visualW, visualH);
+      // Draw the box using visual constraints
+      ctx.fillRect(drawX, drawY, visualW, visualH);
+      ctx.strokeRect(drawX, drawY, visualW, visualH);
+    }
 
     if (text === "EXP" || text === "RAMP") {
       ctx.fillStyle = isHovered ? "rgba(16, 185, 129, 1)" : "rgba(0, 0, 0, 1)";
@@ -452,24 +533,6 @@ export const drawLayout = (
     const displayText = text === "RAMP" ? "R A M P" : text;
     ctx.fillText(displayText, textX, yPos);
     ctx.restore();
-
-    if (isIso) {
-      const dirIntoRail = isLeftwards ? 1 : -1;
-      const r = Math.max(4.5, 5 * Math.max(basePixPerMm || 0.05, 0.1));
-      const x1 = currentAnchor + dirIntoRail * (39 * (basePixPerMm || 0.05));
-      const x2 =
-        currentAnchor + dirIntoRail * ((39 + 127) * (basePixPerMm || 0.05));
-      const yOffsetFromCenter = (RAIL_H / 2) * 0.65;
-      const yTop = yPos - yOffsetFromCenter;
-      const yBot = yPos + yOffsetFromCenter;
-
-      isoHolesToDraw.push(
-        { x: x1, y: yTop, r },
-        { x: x1, y: yBot, r },
-        { x: x2, y: yTop, r },
-        { x: x2, y: yBot, r },
-      );
-    }
 
     if (!isExport && hitboxes) {
       hitboxes.push({
@@ -627,6 +690,18 @@ export const drawLayout = (
   drawVisibilityToggle(phase.blue.visible, "blue", blueY);
 
   // Red Rail
+  const drawDropLine = (px: number, y1: number, y2: number, color: string) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.moveTo(px, y1);
+    ctx.lineTo(px, y2);
+    ctx.stroke();
+    ctx.restore();
+  };
+
   if (phase.red.visible) {
     const startRefIdx =
       typeof phase.red.startRefPostIndex === "number"
@@ -693,12 +768,47 @@ export const drawLayout = (
     ctx.strokeRect(leftPx, redY - RAIL_H / 2, width, RAIL_H);
 
     if (isCutToFit) {
+      const redTipAbsoluteMm = startRefAbsoluteMm - phase.red.startMm;
+      const redEndAbsoluteMm = endRefAbsoluteMm + phase.red.endMm;
+      const railMinMm = Math.min(redTipAbsoluteMm, redEndAbsoluteMm);
+      const railMaxMm = Math.max(redTipAbsoluteMm, redEndAbsoluteMm);
+      
+      const intervals = phase.lugs
+        .filter(l => l.rail === "red")
+        .map(l => {
+          const wMm = l.type === "5" ? RENDER_CONFIG.DIMS.LUG_TYPE_5_W : RENDER_CONFIG.DIMS.LUG_TYPE_1_W;
+          const nearestEdgeMm = l.ref === "start" ? redTipAbsoluteMm + l.dist : redEndAbsoluteMm - l.dist;
+          const lugCenterMm = l.ref === "start" ? nearestEdgeMm + wMm / 2 : nearestEdgeMm - wMm / 2;
+          return { min: lugCenterMm - wMm / 2 - 50, max: lugCenterMm + wMm / 2 + 50 };
+        })
+        .sort((a, b) => a.min - b.min);
+      
+      let maxGapX = railMinMm + (railMaxMm - railMinMm) / 2;
+      let maxGapWidth = 0;
+      
+      let curr = railMinMm;
+      for (const inv of intervals) {
+        if (inv.min > curr) {
+          const gap = inv.min - curr;
+          if (gap > maxGapWidth) {
+            maxGapWidth = gap;
+            maxGapX = curr + gap / 2;
+          }
+        }
+        curr = Math.max(curr, inv.max);
+      }
+      if (railMaxMm - curr > maxGapWidth) {
+        maxGapWidth = railMaxMm - curr;
+        maxGapX = curr + (railMaxMm - curr) / 2;
+      }
+      
+      const textPx = getPx(maxGapX, phase, canvasWidth, isRTL);
       ctx.save();
       ctx.fillStyle = "#6b7280";
       ctx.font = `bold ${Math.max(8, Math.min(22, RAIL_H * 0.8))}px Inter, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("CUT TO FIT", leftPx + width / 2, redY);
+      ctx.fillText("ON-SITE-CUT", textPx, redY);
       ctx.restore();
     }
 
@@ -749,6 +859,7 @@ export const drawLayout = (
             isHovered: hoveredHitbox === "red-start",
           },
         );
+        drawDropLine(edgePx, redGapY, redY, RENDER_CONFIG.COLORS.RED_RAIL);
       }
       if (phase.red.endMm !== 0 || endRefIdx < phase.posts.length - 1) {
         const refPostPx = getPx(endRefAbsoluteMm, phase, canvasWidth, isRTL);
@@ -768,6 +879,7 @@ export const drawLayout = (
             isHovered: hoveredHitbox === "red-end",
           },
         );
+        drawDropLine(edgePx, redGapY, redY, RENDER_CONFIG.COLORS.RED_RAIL);
       }
     }
     const redTotalY = redGapY - 50;
@@ -784,10 +896,10 @@ export const drawLayout = (
     ctx.restore();
 
     const roundedTotalRed = isCutToFit
-      ? Math.ceil(phase.red.totalMm / 1000) * 1000
+      ? getCutToFitLength(phase.red.totalMm)
       : phase.red.totalMm;
     const redTotalText = isCutToFit
-      ? `(+) approx. ${roundedTotalRed} mm`
+      ? `(+) ON-SITE-CUT ≯${roundedTotalRed} mm`
       : `(+) Total: ${phase.red.totalMm.toFixed(0)} mm`;
 
     drawDim(
@@ -891,12 +1003,45 @@ export const drawLayout = (
     ctx.strokeRect(leftPx, blueY - RAIL_H / 2, width, RAIL_H);
 
     if (isCutToFit) {
+      const railMinMm = Math.min(blueTipAbsoluteMm, blueEndAbsoluteMm);
+      const railMaxMm = Math.max(blueTipAbsoluteMm, blueEndAbsoluteMm);
+      
+      const intervals = phase.lugs
+        .filter(l => l.rail === "blue")
+        .map(l => {
+          const wMm = l.type === "5" ? RENDER_CONFIG.DIMS.LUG_TYPE_5_W : RENDER_CONFIG.DIMS.LUG_TYPE_1_W;
+          const nearestEdgeMm = l.ref === "start" ? blueTipAbsoluteMm + l.dist : blueEndAbsoluteMm - l.dist;
+          const lugCenterMm = l.ref === "start" ? nearestEdgeMm + wMm / 2 : nearestEdgeMm - wMm / 2;
+          return { min: lugCenterMm - wMm / 2 - 50, max: lugCenterMm + wMm / 2 + 50 };
+        })
+        .sort((a, b) => a.min - b.min);
+      
+      let maxGapX = railMinMm + (railMaxMm - railMinMm) / 2;
+      let maxGapWidth = 0;
+      
+      let curr = railMinMm;
+      for (const inv of intervals) {
+        if (inv.min > curr) {
+          const gap = inv.min - curr;
+          if (gap > maxGapWidth) {
+            maxGapWidth = gap;
+            maxGapX = curr + gap / 2;
+          }
+        }
+        curr = Math.max(curr, inv.max);
+      }
+      if (railMaxMm - curr > maxGapWidth) {
+        maxGapWidth = railMaxMm - curr;
+        maxGapX = curr + (railMaxMm - curr) / 2;
+      }
+      
+      const textPx = getPx(maxGapX, phase, canvasWidth, isRTL);
       ctx.save();
       ctx.fillStyle = "#6b7280";
       ctx.font = `bold ${Math.max(8, Math.min(22, RAIL_H * 0.8))}px Inter, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("CUT TO FIT", leftPx + width / 2, blueY);
+      ctx.fillText("ON-SITE-CUT", textPx, blueY);
       ctx.restore();
     }
 
@@ -959,6 +1104,7 @@ export const drawLayout = (
           },
           true,
         );
+        drawDropLine(edgePx, blueGapY, blueY, RENDER_CONFIG.COLORS.BLUE_RAIL);
       }
       if (phase.blue.endMm !== 0 || phase.blue.endRefType) {
         let refAbsMm = redEndAbsoluteMm; // default 'red-end'
@@ -990,6 +1136,7 @@ export const drawLayout = (
           },
           true,
         );
+        drawDropLine(edgePx, blueGapY, blueY, RENDER_CONFIG.COLORS.BLUE_RAIL);
       }
     }
     const blueTotalY = blueGapY + 50;
@@ -1006,10 +1153,10 @@ export const drawLayout = (
     ctx.restore();
 
     const roundedTotalBlue = isCutToFit
-      ? Math.ceil(phase.blue.totalMm / 1000) * 1000
+      ? getCutToFitLength(phase.blue.totalMm)
       : phase.blue.totalMm;
     const blueTotalText = isCutToFit
-      ? `(-) approx. ${roundedTotalBlue} mm`
+      ? `(-) ON-SITE-CUT ≯${roundedTotalBlue} mm`
       : `(-) Total: ${phase.blue.totalMm.toFixed(0)} mm`;
 
     drawDim(
@@ -1199,17 +1346,6 @@ export const drawLayout = (
     );
   });
 
-  // Draw ISO holes on top of rails and ISO blocks
-  ctx.fillStyle = "#000000";
-  isoHolesToDraw.forEach((hole) => {
-    ctx.beginPath();
-    ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "#ffffff";
-    ctx.stroke();
-  });
-
   ctx.restore();
 
   if (magnifierPos) {
@@ -1372,49 +1508,51 @@ export const drawLayout = (
   const prevSectionSide = isRTL ? "right" : "left";
   const nextSectionSide = isRTL ? "left" : "right";
 
-  if (activeIndex > 0) {
-    drawPhaseIndicator(
-      prevSectionSide,
-      `SECTION ${activeIndex}`,
-      hoveredHitbox === "nav-prev",
+  if (!isExport) {
+    if (activeIndex > 0) {
+      drawPhaseIndicator(
+        prevSectionSide,
+        `SECTION ${activeIndex}`,
+        hoveredHitbox === "nav-prev",
+      );
+    }
+
+    // Draw the current section ghosted indicator, 15% larger and centered horizontally
+    ctx.save();
+    const centerW = 155 * 1.15;
+    const centerH = 40 * 1.15;
+    const centerOriginY = 120;
+    const centerX = canvasWidth / 2 - centerW / 2;
+    const centerY = centerOriginY - centerH / 2;
+
+    ctx.fillStyle = "rgba(15, 23, 42, 0.05)";
+    ctx.strokeStyle = "rgba(15, 23, 42, 0.2)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+
+    ctx.beginPath();
+    ctx.roundRect(centerX, centerY, centerW, centerH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
+    ctx.font = `800 ${16 * 1.15}px Inter, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(
+      `SECTION ${activeIndex + 1}`,
+      canvasWidth / 2,
+      centerOriginY + 1,
     );
-  }
+    ctx.restore();
 
-  // Draw the current section ghosted indicator, 15% larger and centered horizontally
-  ctx.save();
-  const centerW = 155 * 1.15;
-  const centerH = 40 * 1.15;
-  const centerOriginY = 120;
-  const centerX = canvasWidth / 2 - centerW / 2;
-  const centerY = centerOriginY - centerH / 2;
-
-  ctx.fillStyle = "rgba(15, 23, 42, 0.05)";
-  ctx.strokeStyle = "rgba(15, 23, 42, 0.2)";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([6, 6]);
-
-  ctx.beginPath();
-  ctx.roundRect(centerX, centerY, centerW, centerH, 8);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
-  ctx.font = `800 ${16 * 1.15}px Inter, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(
-    `SECTION ${activeIndex + 1}`,
-    canvasWidth / 2,
-    centerOriginY + 1,
-  );
-  ctx.restore();
-
-  if (activeIndex < totalPhases - 1) {
-    drawPhaseIndicator(
-      nextSectionSide,
-      `SECTION ${activeIndex + 2}`,
-      hoveredHitbox === "nav-next",
-    );
+    if (activeIndex < totalPhases - 1) {
+      drawPhaseIndicator(
+        nextSectionSide,
+        `SECTION ${activeIndex + 2}`,
+        hoveredHitbox === "nav-next",
+      );
+    }
   }
 
   if (!isExport && hitboxes) {

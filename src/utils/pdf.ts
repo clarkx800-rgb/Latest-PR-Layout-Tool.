@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { type AppState } from '../types';
 import { drawLayout } from './drawer';
-import { LayoutMath } from './math';
+import { LayoutMath, getCutToFitLength } from './math';
 import { RENDER_CONFIG, DEFAULT_ZOOM, DEFAULT_PAN_X, DEFAULT_PAN_Y } from '../constants';
 
 export const generatePdf = (state: AppState): jsPDF => {
@@ -69,8 +69,8 @@ export const generatePdf = (state: AppState): jsPDF => {
     doc.setFont('helvetica', 'normal');
     
     // Red / Blue totals
-    const rTot = phase.red.isCutToFit ? `approx. ${Math.ceil(phase.red.totalMm / 1000) * 1000}` : phase.red.totalMm.toFixed(1);
-    const bTot = phase.blue.isCutToFit ? `approx. ${Math.ceil(phase.blue.totalMm / 1000) * 1000}` : phase.blue.totalMm.toFixed(1);
+    const rTot = phase.red.isCutToFit ? `ON-SITE-CUT ≯${getCutToFitLength(phase.red.totalMm)}` : phase.red.totalMm.toFixed(1);
+    const bTot = phase.blue.isCutToFit ? `ON-SITE-CUT ≯${getCutToFitLength(phase.blue.totalMm)}` : phase.blue.totalMm.toFixed(1);
 
     doc.setTextColor(220, 38, 38); // Red
     doc.text(`(+) RED RAIL: ${rTot} mm`, margin + contentWidth - 5, margin + 15, { align: 'right' });

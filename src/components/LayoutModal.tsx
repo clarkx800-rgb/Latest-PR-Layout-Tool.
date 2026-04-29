@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Plus, Trash2, Eye, EyeOff, GripVertical } from "lucide-react";
 import { type Phase, type AppState } from "../types";
+import { LayoutMath } from "../utils/math";
 import {
   motion,
   AnimatePresence,
@@ -213,6 +214,7 @@ export const LayoutModal = ({
   setPrefs,
 }: LayoutModalProps) => {
   const p = state.phases[state.activeIndex];
+  const startPostNum = isOpen ? LayoutMath.getStartPostNum(state.phases, state.activeIndex) : 0;
 
   // Local state for the new lug form to avoid ref usage for segmented controls
   const [newLug, setNewLug] = useState<{
@@ -420,7 +422,7 @@ export const LayoutModal = ({
                       value={p.red.totalMm}
                       onChange={(e) =>
                         updatePhase((phase) => {
-                          phase.red.totalMm = parseFloat(e.target.value) || 0;
+                          phase.red.totalMm = Math.min(9999, parseFloat(e.target.value) || 0);
                           phase.red.visible = phase.red.totalMm > 0;
                         })
                       }
@@ -449,7 +451,7 @@ export const LayoutModal = ({
                       >
                         {Array.from({ length: p.postCount }).map((_, i) => (
                           <option key={i} value={i}>
-                            Post {i + 1}
+                            Post {startPostNum + i}
                           </option>
                         ))}
                       </select>
@@ -510,7 +512,7 @@ export const LayoutModal = ({
                       >
                         {Array.from({ length: p.postCount }).map((_, i) => (
                           <option key={i} value={i}>
-                            Post {i + 1}
+                            Post {startPostNum + i}
                           </option>
                         ))}
                       </select>
@@ -595,10 +597,12 @@ export const LayoutModal = ({
                       placeholder="0"
                       onChange={(e) =>
                         updatePhase((phase) => {
-                          const val =
+                          const val = Math.min(
+                            9999,
                             e.target.value === ""
                               ? 0
-                              : parseFloat(e.target.value) || 0;
+                              : parseFloat(e.target.value) || 0
+                          );
                           phase.blue.totalMm = val;
                           phase.blue.visible = val > 0;
                           const startRefIdx =
@@ -684,7 +688,7 @@ export const LayoutModal = ({
                           >
                             {Array.from({ length: p.postCount }).map((_, i) => (
                               <option key={i} value={i}>
-                                Post {i + 1}
+                                Post {startPostNum + i}
                               </option>
                             ))}
                           </select>
@@ -746,7 +750,7 @@ export const LayoutModal = ({
                           >
                             {Array.from({ length: p.postCount }).map((_, i) => (
                               <option key={i} value={i}>
-                                Post {i + 1}
+                                Post {startPostNum + i}
                               </option>
                             ))}
                           </select>
