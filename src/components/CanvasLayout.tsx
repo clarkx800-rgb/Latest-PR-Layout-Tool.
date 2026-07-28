@@ -102,9 +102,13 @@ export const CanvasLayout = ({
     null,
   );
   const [tempOverrides, setTempOverrides] = useState<{
-    rail: "red" | "blue";
+    rail?: "red" | "blue" | "custom-rail";
     startMm?: number;
     endMm?: number;
+    customRailStartMm?: number;
+    customRailEndMm?: number;
+    customRailBlueStartMm?: number;
+    customRailBlueEndMm?: number;
   } | null>(null);
 
   // Reset local pan when phase pan changes from outside
@@ -197,11 +201,22 @@ export const CanvasLayout = ({
       }
     }
 
+    const renderCustomRail = {
+      ...(phase['custom-rail'] || { start: false, end: false, startMm: 1000, endMm: 1000 }),
+      blueStartMm: phase['custom-rail']?.blueStartMm ?? phase['custom-rail']?.startMm ?? 1000,
+      blueEndMm: phase['custom-rail']?.blueEndMm ?? phase['custom-rail']?.endMm ?? 1000,
+      ...(tempOverrides?.customRailStartMm !== undefined ? { startMm: tempOverrides.customRailStartMm } : {}),
+      ...(tempOverrides?.customRailEndMm !== undefined ? { endMm: tempOverrides.customRailEndMm } : {}),
+      ...(tempOverrides?.customRailBlueStartMm !== undefined ? { blueStartMm: tempOverrides.customRailBlueStartMm } : {}),
+      ...(tempOverrides?.customRailBlueEndMm !== undefined ? { blueEndMm: tempOverrides.customRailBlueEndMm } : {}),
+    };
+
     // Use a copy of the phase with the local ephemeral panning coordinates
     const renderPhase: Phase = {
       ...phase,
       red: renderRed,
       blue: renderBlue,
+      'custom-rail': renderCustomRail,
       view: {
         ...phase.view,
         panX: localPan.x,
@@ -413,6 +428,22 @@ export const CanvasLayout = ({
         const redTipAbsoluteMm = startRefAbs - phase.red.startMm;
         const redEndAbsoluteMm = endRefAbs + phase.red.endMm;
 
+        let blueTipAbsoluteMm = redTipAbsoluteMm + phase.blue.startMm;
+        if (phase.blue.startRefType === "post") {
+          const blueStartRefIdx = typeof phase.blue.startRefPostIndex === "number" ? phase.blue.startRefPostIndex : 0;
+          blueTipAbsoluteMm = (phase.posts[blueStartRefIdx] || 0) - phase.blue.startMm;
+        } else if (phase.blue.startRefType === "red-end") {
+          blueTipAbsoluteMm = redEndAbsoluteMm + phase.blue.startMm;
+        }
+
+        let blueEndAbsoluteMm = redEndAbsoluteMm + phase.blue.endMm;
+        if (phase.blue.endRefType === "post") {
+          const blueEndRefIdx = typeof phase.blue.endRefPostIndex === "number" ? phase.blue.endRefPostIndex : phase.posts.length - 1;
+          blueEndAbsoluteMm = (phase.posts[blueEndRefIdx] || phase.postSpanMm) + phase.blue.endMm;
+        } else if (phase.blue.endRefType === "red-start") {
+          blueEndAbsoluteMm = redTipAbsoluteMm + phase.blue.endMm;
+        }
+
         if (handleType === "red-start-handle") {
           next.startMm = snap(startRefAbs - realMm);
         } else if (handleType === "blue-start-handle") {
@@ -445,6 +476,62 @@ export const CanvasLayout = ({
             refAbsMm = redTipAbsoluteMm;
 
           next.endMm = snap(realMm - refAbsMm);
+        } else if (handleType === "custom-rail-start-handle") {
+          const ALL_ATTS = ["cis", "iso", "ramp", "exp", "custom-rail"] as const;
+          const startAtts = phase.startAttachments ?? ALL_ATTS.filter((t) => phase[t]?.start);
+          let precedingMm = 0;
+          for (const t of startAtts) {
+            if (t === "custom-rail") break;
+            if (t === "cis") precedingMm += 350;
+            else if (t === "iso") precedingMm += 685;
+            else if (t === "ramp") precedingMm += 4250;
+            else if (t === "exp") precedingMm += 3987;
+          }
+          const anchorAbsMm = state.isRTL ? redTipAbsoluteMm + precedingMm : redTipAbsoluteMm - precedingMm;
+          const diffMm = Math.max(0, Math.abs(anchorAbsMm - realMm));
+          next.customRailStartMm = snap(diffMm);
+        } else if (handleType === "custom-rail-blue-start-handle") {
+          const ALL_ATTS = ["cis", "iso", "ramp", "exp", "custom-rail"] as const;
+          const startAtts = phase.startAttachments ?? ALL_ATTS.filter((t) => phase[t]?.start);
+          let precedingMm = 0;
+          for (const t of startAtts) {
+            if (t === "custom-rail") break;
+            if (t === "cis") precedingMm += 350;
+            else if (t === "iso") precedingMm += 685;
+            else if (t === "ramp") precedingMm += 4250;
+            else if (t === "exp") precedingMm += 3987;
+          }
+          const anchorAbsMm = state.isRTL ? blueTipAbsoluteMm + precedingMm : blueTipAbsoluteMm - precedingMm;
+          const diffMm = Math.max(0, Math.abs(anchorAbsMm - realMm));
+          next.customRailBlueStartMm = snap(diffMm);
+        } else if (handleType === "custom-rail-end-handle") {
+          const ALL_ATTS = ["cis", "iso", "ramp", "exp", "custom-rail"] as const;
+          const endAtts = phase.endAttachments ?? ALL_ATTS.filter((t) => phase[t]?.end);
+          let precedingMm = 0;
+          for (const t of endAtts) {
+            if (t === "custom-rail") break;
+            if (t === "cis") precedingMm += 350;
+            else if (t === "iso") precedingMm += 685;
+            else if (t === "ramp") precedingMm += 4250;
+            else if (t === "exp") precedingMm += 3987;
+          }
+          const anchorAbsMm = state.isRTL ? redEndAbsoluteMm - precedingMm : redEndAbsoluteMm + precedingMm;
+          const diffMm = Math.max(0, Math.abs(realMm - anchorAbsMm));
+          next.customRailEndMm = snap(diffMm);
+        } else if (handleType === "custom-rail-blue-end-handle") {
+          const ALL_ATTS = ["cis", "iso", "ramp", "exp", "custom-rail"] as const;
+          const endAtts = phase.endAttachments ?? ALL_ATTS.filter((t) => phase[t]?.end);
+          let precedingMm = 0;
+          for (const t of endAtts) {
+            if (t === "custom-rail") break;
+            if (t === "cis") precedingMm += 350;
+            else if (t === "iso") precedingMm += 685;
+            else if (t === "ramp") precedingMm += 4250;
+            else if (t === "exp") precedingMm += 3987;
+          }
+          const anchorAbsMm = state.isRTL ? blueEndAbsoluteMm - precedingMm : blueEndAbsoluteMm + precedingMm;
+          const diffMm = Math.max(0, Math.abs(realMm - anchorAbsMm));
+          next.customRailBlueEndMm = snap(diffMm);
         }
         return next;
       });
@@ -508,6 +595,54 @@ export const CanvasLayout = ({
           tempOverrides?.endMm !== undefined
         ) {
           p.blue.endMm = tempOverrides.endMm;
+        } else if (
+          handleType === "custom-rail-start-handle" &&
+          tempOverrides?.customRailStartMm !== undefined
+        ) {
+          p['custom-rail'] = {
+            start: true,
+            end: p['custom-rail']?.end ?? false,
+            startMm: tempOverrides.customRailStartMm,
+            endMm: p['custom-rail']?.endMm ?? 1000,
+            blueStartMm: p['custom-rail']?.blueStartMm ?? p['custom-rail']?.startMm ?? 1000,
+            blueEndMm: p['custom-rail']?.blueEndMm ?? p['custom-rail']?.endMm ?? 1000,
+          };
+        } else if (
+          handleType === "custom-rail-blue-start-handle" &&
+          tempOverrides?.customRailBlueStartMm !== undefined
+        ) {
+          p['custom-rail'] = {
+            start: true,
+            end: p['custom-rail']?.end ?? false,
+            startMm: p['custom-rail']?.startMm ?? 1000,
+            endMm: p['custom-rail']?.endMm ?? 1000,
+            blueStartMm: tempOverrides.customRailBlueStartMm,
+            blueEndMm: p['custom-rail']?.blueEndMm ?? p['custom-rail']?.endMm ?? 1000,
+          };
+        } else if (
+          handleType === "custom-rail-end-handle" &&
+          tempOverrides?.customRailEndMm !== undefined
+        ) {
+          p['custom-rail'] = {
+            start: p['custom-rail']?.start ?? false,
+            end: true,
+            startMm: p['custom-rail']?.startMm ?? 1000,
+            endMm: tempOverrides.customRailEndMm,
+            blueStartMm: p['custom-rail']?.blueStartMm ?? p['custom-rail']?.startMm ?? 1000,
+            blueEndMm: p['custom-rail']?.blueEndMm ?? p['custom-rail']?.endMm ?? 1000,
+          };
+        } else if (
+          handleType === "custom-rail-blue-end-handle" &&
+          tempOverrides?.customRailBlueEndMm !== undefined
+        ) {
+          p['custom-rail'] = {
+            start: p['custom-rail']?.start ?? false,
+            end: true,
+            startMm: p['custom-rail']?.startMm ?? 1000,
+            endMm: p['custom-rail']?.endMm ?? 1000,
+            blueStartMm: p['custom-rail']?.blueStartMm ?? p['custom-rail']?.startMm ?? 1000,
+            blueEndMm: tempOverrides.customRailBlueEndMm,
+          };
         }
       });
       activeDragHandle.current = null;
@@ -603,7 +738,39 @@ export const CanvasLayout = ({
         }
         setEditingHitbox(null);
       } else if (hit) {
-        setEditingHitbox({ hitbox: hit, strValue: hit.value.toString() });
+        if (hit.type === "red-name") {
+          setEditingHitbox({
+            hitbox: hit,
+            strValue: phase.red.name || "Positive Rail",
+          });
+        } else if (hit.type === "blue-name") {
+          setEditingHitbox({
+            hitbox: hit,
+            strValue: phase.blue.name || "Negative Rail",
+          });
+        } else if (hit.type === "custom-rail-start-name") {
+          setEditingHitbox({
+            hitbox: hit,
+            strValue: phase['custom-rail']?.startName || "CUSTOM RAIL",
+          });
+        } else if (hit.type === "custom-rail-end-name") {
+          setEditingHitbox({
+            hitbox: hit,
+            strValue: phase['custom-rail']?.endName || "CUSTOM RAIL",
+          });
+        } else if (hit.type === "custom-rail-blue-start-name") {
+          setEditingHitbox({
+            hitbox: hit,
+            strValue: phase['custom-rail']?.blueStartName || "CUSTOM RAIL",
+          });
+        } else if (hit.type === "custom-rail-blue-end-name") {
+          setEditingHitbox({
+            hitbox: hit,
+            strValue: phase['custom-rail']?.blueEndName || "CUSTOM RAIL",
+          });
+        } else {
+          setEditingHitbox({ hitbox: hit, strValue: hit.value.toString() });
+        }
       } else {
         setConfirmDeleteHitboxId(null);
         setEditingHitbox(null);
@@ -619,6 +786,59 @@ export const CanvasLayout = ({
 
   const handleCommitEdit = (state: typeof editingHitbox) => {
     if (!state) return;
+
+    if (state.hitbox.type === "red-name") {
+      updatePhase((p) => {
+        p.red.name = state.strValue.trim() || "Positive Rail";
+      });
+      setEditingHitbox(null);
+      return;
+    }
+
+    if (state.hitbox.type === "blue-name") {
+      updatePhase((p) => {
+        p.blue.name = state.strValue.trim() || "Negative Rail";
+      });
+      setEditingHitbox(null);
+      return;
+    }
+
+    if (state.hitbox.type === "custom-rail-start-name") {
+      updatePhase((p) => {
+        if (!p['custom-rail']) p['custom-rail'] = { start: true, end: false };
+        p['custom-rail'].startName = state.strValue.trim() || "CUSTOM RAIL";
+      });
+      setEditingHitbox(null);
+      return;
+    }
+
+    if (state.hitbox.type === "custom-rail-end-name") {
+      updatePhase((p) => {
+        if (!p['custom-rail']) p['custom-rail'] = { start: false, end: true };
+        p['custom-rail'].endName = state.strValue.trim() || "CUSTOM RAIL";
+      });
+      setEditingHitbox(null);
+      return;
+    }
+
+    if (state.hitbox.type === "custom-rail-blue-start-name") {
+      updatePhase((p) => {
+        if (!p['custom-rail']) p['custom-rail'] = { start: true, end: false };
+        p['custom-rail'].blueStartName = state.strValue.trim() || "CUSTOM RAIL";
+      });
+      setEditingHitbox(null);
+      return;
+    }
+
+    if (state.hitbox.type === "custom-rail-blue-end-name") {
+      updatePhase((p) => {
+        if (!p['custom-rail']) p['custom-rail'] = { start: false, end: true };
+        p['custom-rail'].blueEndName = state.strValue.trim() || "CUSTOM RAIL";
+      });
+      setEditingHitbox(null);
+      return;
+    }
+
     const val = parseFloat(state.strValue);
     if (isNaN(val)) {
       setEditingHitbox(null);
@@ -629,6 +849,22 @@ export const CanvasLayout = ({
       const hit = state.hitbox;
       if (hit.type === "red-start") p.red.startMm = val;
       if (hit.type === "red-end") p.red.endMm = val;
+      if (hit.type === "custom-rail-start") {
+        if (!p['custom-rail']) p['custom-rail'] = { start: true, end: false };
+        p['custom-rail'].startMm = Math.max(0, val);
+      }
+      if (hit.type === "custom-rail-end") {
+        if (!p['custom-rail']) p['custom-rail'] = { start: false, end: true };
+        p['custom-rail'].endMm = Math.max(0, val);
+      }
+      if (hit.type === "custom-rail-blue-start") {
+        if (!p['custom-rail']) p['custom-rail'] = { start: true, end: false };
+        p['custom-rail'].blueStartMm = Math.max(0, val);
+      }
+      if (hit.type === "custom-rail-blue-end") {
+        if (!p['custom-rail']) p['custom-rail'] = { start: false, end: true };
+        p['custom-rail'].blueEndMm = Math.max(0, val);
+      }
       if (hit.type === "red-total") p.red.totalMm = Math.min(9999, val);
       if (hit.type === "blue-start") p.blue.startMm = val;
       if (hit.type === "blue-end") p.blue.endMm = val;
@@ -724,8 +960,10 @@ export const CanvasLayout = ({
             const currentType = parts[1];
             const position = parts[2] as "start" | "end";
 
+            const ALL_ATTS = ["cis", "iso", "ramp", "exp", "custom-rail"] as const;
+
             const toggleGhost = (
-              targetType: "cis" | "iso" | "ramp" | "exp",
+              targetType: "cis" | "iso" | "ramp" | "exp" | "custom-rail",
             ) => {
               updatePhase((p) => {
                 const currentVal = !!p[targetType]?.[position];
@@ -740,7 +978,7 @@ export const CanvasLayout = ({
                   position === "start" ? "startAttachments" : "endAttachments";
                 let arr =
                   p[arrKey] ??
-                  (["cis", "iso", "ramp", "exp"] as const).filter(
+                  ALL_ATTS.filter(
                     (t) => p[t]?.[position],
                   );
 
@@ -758,6 +996,7 @@ export const CanvasLayout = ({
               if (t === "iso") return phase.iso?.[position];
               if (t === "ramp") return phase.ramp?.[position];
               if (t === "exp") return phase.exp?.[position];
+              if (t === "custom-rail") return phase["custom-rail"]?.[position];
               return false;
             };
 
@@ -792,7 +1031,7 @@ export const CanvasLayout = ({
                     </svg>
                   </button>
                 </div>
-                {(["cis", "iso", "ramp", "exp"] as const).map((t) => {
+                {ALL_ATTS.map((t) => {
                   const isActive = isTypeActive(t);
                   return (
                     <button
@@ -801,7 +1040,7 @@ export const CanvasLayout = ({
                       onClick={() => toggleGhost(t)}
                       className={`flex items-center justify-between px-3 py-2 text-sm font-medium rounded transition-colors ${isActive ? "bg-blue-600 text-white" : "bg-zinc-700 text-zinc-300 hover:bg-zinc-600"}`}
                     >
-                      <span>{t.toUpperCase()}</span>
+                      <span>{t === "custom-rail" ? "CUSTOM RAIL" : t.toUpperCase()}</span>
                       <div
                         className={`w-3 h-3 rounded flex items-center justify-center font-bold border ${isActive ? "bg-white border-white text-blue-600 text-[10px]" : "border-zinc-500"}`}
                       >
@@ -817,6 +1056,78 @@ export const CanvasLayout = ({
           const isRightEdge =
             containerRef.current &&
             r.left + 300 > containerRef.current.clientWidth;
+
+          const isNameEditing =
+            editingHitbox.hitbox.type === "red-name" ||
+            editingHitbox.hitbox.type === "blue-name" ||
+            editingHitbox.hitbox.type === "custom-rail-start-name" ||
+            editingHitbox.hitbox.type === "custom-rail-end-name" ||
+            editingHitbox.hitbox.type === "custom-rail-blue-start-name" ||
+            editingHitbox.hitbox.type === "custom-rail-blue-end-name";
+
+          if (isNameEditing) {
+            const hType = editingHitbox.hitbox.type;
+            let titleText = "Edit Rail Name";
+            if (hType === "red-name") titleText = "Edit (+) Rail Name";
+            else if (hType === "blue-name") titleText = "Edit (-) Rail Name";
+            else if (hType === "custom-rail-start-name") titleText = "Edit (+) Custom Rail Name";
+            else if (hType === "custom-rail-end-name") titleText = "Edit (+) Custom Rail Name";
+            else if (hType === "custom-rail-blue-start-name") titleText = "Edit (-) Custom Rail Name";
+            else if (hType === "custom-rail-blue-end-name") titleText = "Edit (-) Custom Rail Name";
+
+            return (
+              <>
+                <div
+                  className="absolute inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCommitEdit(editingHitbox);
+                  }}
+                />
+                <div
+                  className="absolute z-50 p-2.5 bg-white shadow-2xl border-2 border-emerald-500 rounded-xl ring-4 ring-emerald-500/20 flex flex-col gap-2 min-w-[220px]"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  style={{
+                    left: Math.max(12, Math.min(r.left - 40, (containerRef.current?.clientWidth || 300) - 240)),
+                    top: Math.max(12, r.top - 15),
+                  }}
+                >
+                  <div className="text-[10px] font-black uppercase text-zinc-500 tracking-wider flex items-center justify-between">
+                    <span>{titleText}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      id="editing-rail-name-input"
+                      name="editing-rail-name-input"
+                      autoFocus
+                      className="w-full text-center font-bold outline-none text-zinc-900 bg-zinc-50 border border-zinc-300 rounded-md px-2.5 py-1.5 text-base focus:border-emerald-500 focus:bg-white"
+                      value={editingHitbox.strValue}
+                      type="text"
+                      inputMode="text"
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) =>
+                        setEditingHitbox((s) =>
+                          s ? { ...s, strValue: e.target.value } : null,
+                        )
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleCommitEdit(editingHitbox);
+                        else if (e.key === "Escape") setEditingHitbox(null);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleCommitEdit(editingHitbox)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-md text-xs transition-colors shrink-0 shadow-sm"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </>
+            );
+          }
 
           return (
             <>

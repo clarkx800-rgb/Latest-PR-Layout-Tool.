@@ -10,9 +10,10 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { type Phase, type AppState } from './types';
-import { DEFAULT_ZOOM, DEFAULT_PAN_X, DEFAULT_PAN_Y } from './constants';
+import { DEFAULT_ZOOM, DEFAULT_PAN_X, DEFAULT_PAN_Y, RENDER_CONFIG } from './constants';
 import { LayoutMath } from './utils/math';
 import { generatePdf } from './utils/pdf';
+import { getAutoCenteredPan } from './utils/drawer';
 import { CanvasLayout } from './components/CanvasLayout';
 import { LayoutModal } from './components/LayoutModal';
 import { NotesModal } from './components/NotesModal';
@@ -33,23 +34,31 @@ const safeSetItem = (key: string, value: string) => {
   }
 };
 
-const createDefaultPhase = (): Phase => ({
-  postCount: 5,
-  postSpanMm: 7998,
-  posts: [],
-  red: { startMm: 1000, endMm: 1000, totalMm: 9998, visible: true },
-  blue: { startMm: 1000, endMm: 1000, totalMm: 9998, visible: true },
-  lugs: [],
-  cis: { start: false, end: false },
-  iso: { start: false, end: false },
-  ramp: { start: false, end: false },
-  exp: { start: false, end: false },
-  minMm: 0,
-  maxMm: 9998,
-  comments: "",
-  view: { scale: DEFAULT_ZOOM, panX: DEFAULT_PAN_X, panY: DEFAULT_PAN_Y },
-  showPosts: true
-});
+const createDefaultPhase = (): Phase => {
+  const p: Phase = {
+    postCount: 5,
+    postSpanMm: 7998,
+    posts: [],
+    red: { startMm: 1000, endMm: 1000, totalMm: 9998, visible: true },
+    blue: { startMm: 1000, endMm: 1000, totalMm: 9998, visible: true },
+    lugs: [],
+    cis: { start: false, end: false },
+    iso: { start: false, end: false },
+    ramp: { start: false, end: false },
+    exp: { start: false, end: false },
+    'custom-rail': { start: false, end: false, startMm: 1000, endMm: 1000 },
+    minMm: -1000,
+    maxMm: 8998,
+    comments: "",
+    view: { scale: DEFAULT_ZOOM, panX: 0, panY: 0 },
+    showPosts: true
+  };
+  LayoutMath.calc(p);
+  const autoPan = getAutoCenteredPan(p, RENDER_CONFIG.DIMS.CANVAS_W, RENDER_CONFIG.DIMS.CANVAS_H, false, DEFAULT_ZOOM);
+  p.view.panX = autoPan.panX;
+  p.view.panY = autoPan.panY;
+  return p;
+};
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -71,25 +80,36 @@ export default function App() {
             activeIndex: 0,
             phases: []
           };
-          const safePhases = parsed.phases.map((p: any) => ({
-            ...createDefaultPhase(),
-            ...p,
-            red: { ...createDefaultPhase().red, ...(p.red || {}) },
-            blue: { ...createDefaultPhase().blue, ...(p.blue || {}) },
-            lugs: p.lugs || [],
-            view: { scale: DEFAULT_ZOOM, panX: DEFAULT_PAN_X, panY: DEFAULT_PAN_Y, ...(p.view || {}) },
-            showPosts: p.showPosts !== undefined ? p.showPosts : true,
-            cis: { start: false, end: false, ...(p.cis || {}) },
-            iso: { start: false, end: false, ...(p.iso || {}) },
-            ramp: { start: false, end: false, ...(p.ramp || {}) },
-            exp: { start: false, end: false, ...(p.exp || {}) }
-          }));
+          const safePhases = parsed.phases.map((p: any) => {
+            const def = createDefaultPhase();
+            const merged = {
+              ...def,
+              ...p,
+              red: { ...def.red, ...(p.red || {}) },
+              blue: { ...def.blue, ...(p.blue || {}) },
+              lugs: p.lugs || [],
+              showPosts: p.showPosts !== undefined ? p.showPosts : true,
+              cis: { start: false, end: false, ...(p.cis || {}) },
+              iso: { start: false, end: false, ...(p.iso || {}) },
+              ramp: { start: false, end: false, ...(p.ramp || {}) },
+              exp: { start: false, end: false, ...(p.exp || {}) },
+              'custom-rail': { start: false, end: false, startMm: 1000, endMm: 1000, ...(p['custom-rail'] || {}) }
+            };
+            const autoPan = getAutoCenteredPan(merged, RENDER_CONFIG.DIMS.CANVAS_W, RENDER_CONFIG.DIMS.CANVAS_H, !!parsed.isRTL, p.view?.scale || DEFAULT_ZOOM);
+            merged.view = {
+              scale: p.view?.scale || DEFAULT_ZOOM,
+              panX: p.view?.panX !== undefined ? p.view.panX : autoPan.panX,
+              panY: p.view?.panY !== undefined ? p.view.panY : autoPan.panY
+            };
+            return merged;
+          });
 
-          return {
+          const loadedState = {
             ...defaultState,
             ...parsed,
             phases: safePhases
           };
+          return LayoutMath.cascadeMath(loadedState);
         }
       } catch (e) {
         console.error("Failed to load saved state", e);
@@ -303,9 +323,10 @@ export default function App() {
 
   const handleAutoFit = () => {
     updatePhase(p => {
+      const autoPan = getAutoCenteredPan(p, RENDER_CONFIG.DIMS.CANVAS_W, RENDER_CONFIG.DIMS.CANVAS_H, state.isRTL, DEFAULT_ZOOM);
       p.view.scale = DEFAULT_ZOOM;
-      p.view.panX = DEFAULT_PAN_X;
-      p.view.panY = DEFAULT_PAN_Y;
+      p.view.panX = autoPan.panX;
+      p.view.panY = autoPan.panY;
     }, false);
   };
 
@@ -336,27 +357,73 @@ export default function App() {
       />
 
       <main className="absolute inset-0 p-[12px] flex flex-col overflow-hidden pointer-events-none z-10">
-        <div className="w-full h-full relative flex items-stretch justify-center pointer-events-auto rounded-xl shadow-2xl" style={{ containerType: 'size' }}>
+        {/* Floating Top Section Indicator with Directional Cue */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex items-center justify-center">
           <AnimatePresence mode="wait" custom={navDirection}>
             <motion.div
               key={state.activeIndex}
               custom={navDirection}
               variants={{
                 initial: (dir: number) => {
-                   const sign = state.isRTL ? -1 : 1;
-                   return { opacity: 0, x: 50 * dir * sign };
+                  const sign = state.isRTL ? -1 : 1;
+                  return { opacity: 0, y: -12, x: dir * sign * 30, scale: 0.92 };
                 },
-                animate: { opacity: 1, x: 0 },
+                animate: { opacity: 1, y: 0, x: 0, scale: 1 },
                 exit: (dir: number) => {
-                   const sign = state.isRTL ? -1 : 1;
-                   return { opacity: 0, x: -50 * dir * sign };
+                  const sign = state.isRTL ? -1 : 1;
+                  return { opacity: 0, y: 12, x: -dir * sign * 30, scale: 0.92 };
                 }
               }}
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className={`absolute inset-0 flex-shrink-0 w-full h-full ${canvasStyle.maxH} ${canvasStyle.maxW} flex justify-center items-center transition-all duration-500`}
+              transition={{ type: "spring", stiffness: 320, damping: 26 }}
+              className="bg-zinc-900/90 backdrop-blur-xl border border-white/15 px-4 py-1.5 rounded-full shadow-2xl flex items-center gap-2.5 text-xs sm:text-sm font-bold text-white tracking-wide"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+              <span className="text-zinc-400 uppercase tracking-widest text-[11px]">Section</span>
+              <span className="text-emerald-400 font-extrabold text-base">{state.activeIndex + 1}</span>
+              <span className="text-zinc-500 font-mono text-xs">of {state.phases.length}</span>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <div className="w-full h-full relative flex items-stretch justify-center pointer-events-auto rounded-xl shadow-2xl" style={{ containerType: 'size' }}>
+          <AnimatePresence mode="popLayout" custom={navDirection}>
+            <motion.div
+              key={state.activeIndex}
+              custom={navDirection}
+              variants={{
+                initial: (dir: number) => {
+                   const sign = state.isRTL ? -1 : 1;
+                   return { 
+                     opacity: 0, 
+                     x: `${dir * sign * 80}%`,
+                     scale: 0.94,
+                     filter: 'blur(3px)'
+                   };
+                },
+                animate: { 
+                  opacity: 1, 
+                  x: '0%',
+                  scale: 1,
+                  filter: 'blur(0px)'
+                },
+                exit: (dir: number) => {
+                   const sign = state.isRTL ? -1 : 1;
+                   return { 
+                     opacity: 0, 
+                     x: `${-dir * sign * 80}%`,
+                     scale: 0.94,
+                     filter: 'blur(3px)'
+                   };
+                }
+              }}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ type: 'spring', stiffness: 280, damping: 28, mass: 0.8 }}
+              className={`absolute inset-0 flex-shrink-0 w-full h-full ${canvasStyle.maxH} ${canvasStyle.maxW} flex justify-center items-center`}
               style={{ width: '100%', aspectRatio: canvasStyle.aspect }}
             >
               <CanvasLayout 

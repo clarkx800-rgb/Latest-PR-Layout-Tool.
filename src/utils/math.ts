@@ -86,12 +86,52 @@ export class LayoutMath {
 
     phase.blue.totalMm = blueEndAbsoluteMm - blueTipAbsoluteMm;
 
-    phase.minMm = Math.min(redTipAbsoluteMm, blueTipAbsoluteMm, 0);
-    phase.maxMm = Math.max(
-      redEndAbsoluteMm,
-      blueEndAbsoluteMm,
-      phase.postSpanMm,
-    );
+    const ALL_ATTS = ["cis", "iso", "ramp", "exp", "custom-rail"] as const;
+    const startAtts = phase.startAttachments ?? ALL_ATTS.filter((t) => phase[t]?.start);
+    const endAtts = phase.endAttachments ?? ALL_ATTS.filter((t) => phase[t]?.end);
+
+    const getAttMm = (t: string, pos: "start" | "end", isRed: boolean) => {
+      if (t === "custom-rail") {
+        if (pos === "start") {
+          return isRed
+            ? (phase["custom-rail"]?.startMm ?? 1000)
+            : (phase["custom-rail"]?.blueStartMm ?? phase["custom-rail"]?.startMm ?? 1000);
+        } else {
+          return isRed
+            ? (phase["custom-rail"]?.endMm ?? 1000)
+            : (phase["custom-rail"]?.blueEndMm ?? phase["custom-rail"]?.endMm ?? 1000);
+        }
+      }
+      if (t === "exp") return 3987;
+      if (t === "ramp") return 4250;
+      if (t === "iso") return 685;
+      if (t === "cis") return 350;
+      return 0;
+    };
+
+    let redStartAttMm = 0;
+    startAtts.forEach((t) => { redStartAttMm += getAttMm(t, "start", true); });
+    let redEndAttMm = 0;
+    endAtts.forEach((t) => { redEndAttMm += getAttMm(t, "end", true); });
+
+    let blueStartAttMm = 0;
+    startAtts.forEach((t) => { blueStartAttMm += getAttMm(t, "start", false); });
+    let blueEndAttMm = 0;
+    endAtts.forEach((t) => { blueEndAttMm += getAttMm(t, "end", false); });
+
+    const bounds: number[] = [0, phase.postSpanMm];
+    if (phase.red.visible) {
+      bounds.push(redTipAbsoluteMm, redEndAbsoluteMm);
+      if (startAtts.length > 0) bounds.push(redTipAbsoluteMm - redStartAttMm);
+      if (endAtts.length > 0) bounds.push(redEndAbsoluteMm + redEndAttMm);
+    }
+    if (phase.blue.visible) {
+      bounds.push(blueTipAbsoluteMm, blueEndAbsoluteMm);
+      if (startAtts.length > 0) bounds.push(blueTipAbsoluteMm - blueStartAttMm);
+      if (endAtts.length > 0) bounds.push(blueEndAbsoluteMm + blueEndAttMm);
+    }
+    phase.minMm = Math.min(...bounds);
+    phase.maxMm = Math.max(...bounds);
 
     phase.lugs.forEach((l) => {
       const railData = l.rail === "red" ? phase.red : phase.blue;

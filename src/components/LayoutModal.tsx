@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Plus, Trash2, Eye, EyeOff, GripVertical } from "lucide-react";
+import { X, Plus, Trash2, Eye, EyeOff, GripVertical, Pencil } from "lucide-react";
 import { type Phase, type AppState } from "../types";
 import { LayoutMath } from "../utils/math";
 import {
@@ -137,16 +137,33 @@ const LugItem = ({ lug, updatePhase }: { lug: any; updatePhase: any }) => {
   );
 };
 
+const ALL_ATTACHMENT_TYPES = ["cis", "iso", "ramp", "exp", "custom-rail"] as const;
+
 const AttachmentItem = ({
   type,
+  phase,
   updatePhase,
   isStart,
 }: {
   type: string;
+  phase: Phase;
   updatePhase: any;
   isStart: boolean;
 }) => {
   const controls = useDragControls();
+  const label = type === "custom-rail" ? "CUSTOM RAIL" : type.toUpperCase();
+  const customRedLen = isStart
+    ? (phase['custom-rail']?.startMm ?? 1000)
+    : (phase['custom-rail']?.endMm ?? 1000);
+  const customBlueLen = isStart
+    ? (phase['custom-rail']?.blueStartMm ?? phase['custom-rail']?.startMm ?? 1000)
+    : (phase['custom-rail']?.blueEndMm ?? phase['custom-rail']?.endMm ?? 1000);
+  const customRedName = isStart
+    ? (phase['custom-rail']?.startName ?? "CUSTOM RAIL")
+    : (phase['custom-rail']?.endName ?? "CUSTOM RAIL");
+  const customBlueName = isStart
+    ? (phase['custom-rail']?.blueStartName ?? "CUSTOM RAIL")
+    : (phase['custom-rail']?.blueEndName ?? "CUSTOM RAIL");
 
   return (
     <Reorder.Item
@@ -162,7 +179,7 @@ const AttachmentItem = ({
       }}
       className="flex items-center justify-between bg-zinc-900 border border-zinc-700 rounded px-2 py-1 flex-shrink-0 relative"
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <div
           className="cursor-grab active:cursor-grabbing hover:bg-zinc-800 p-0.5 rounded transition-colors"
           onPointerDown={(e) => controls.start(e)}
@@ -170,8 +187,78 @@ const AttachmentItem = ({
           <GripVertical size={14} className="text-zinc-500" />
         </div>
         <span className="text-xs font-bold text-zinc-200">
-          {type.toUpperCase()}
+          {label}
         </span>
+        {type === "custom-rail" && (
+          <div className="flex flex-wrap items-center gap-2 ml-1 bg-zinc-950/60 p-1 rounded border border-zinc-800">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-bold text-red-400 font-mono">(+) RED:</span>
+              <input
+                type="text"
+                className="w-24 bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-xs text-white font-bold focus:border-red-500 focus:outline-none"
+                value={customRedName}
+                placeholder="CUSTOM RAIL"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  updatePhase((ph: any) => {
+                    if (!ph['custom-rail']) ph['custom-rail'] = { start: false, end: false };
+                    if (isStart) ph['custom-rail'].startName = val;
+                    else ph['custom-rail'].endName = val;
+                  });
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <input
+                type="number"
+                className="w-16 bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-xs text-white text-right font-mono focus:border-red-500 focus:outline-none"
+                value={customRedLen}
+                onChange={(e) => {
+                  const val = Math.max(0, parseInt(e.target.value) || 0);
+                  updatePhase((ph: any) => {
+                    if (!ph['custom-rail']) ph['custom-rail'] = { start: false, end: false };
+                    if (isStart) ph['custom-rail'].startMm = val;
+                    else ph['custom-rail'].endMm = val;
+                  });
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-[10px] text-zinc-400 font-semibold">mm</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-bold text-sky-400 font-mono">(-) BLUE:</span>
+              <input
+                type="text"
+                className="w-24 bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-xs text-white font-bold focus:border-sky-500 focus:outline-none"
+                value={customBlueName}
+                placeholder="CUSTOM RAIL"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  updatePhase((ph: any) => {
+                    if (!ph['custom-rail']) ph['custom-rail'] = { start: false, end: false };
+                    if (isStart) ph['custom-rail'].blueStartName = val;
+                    else ph['custom-rail'].blueEndName = val;
+                  });
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <input
+                type="number"
+                className="w-16 bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-xs text-white text-right font-mono focus:border-sky-500 focus:outline-none"
+                value={customBlueLen}
+                onChange={(e) => {
+                  const val = Math.max(0, parseInt(e.target.value) || 0);
+                  updatePhase((ph: any) => {
+                    if (!ph['custom-rail']) ph['custom-rail'] = { start: false, end: false };
+                    if (isStart) ph['custom-rail'].blueStartMm = val;
+                    else ph['custom-rail'].blueEndMm = val;
+                  });
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-[10px] text-zinc-400 font-semibold">mm</span>
+            </div>
+          </div>
+        )}
       </div>
       <button
         type="button"
@@ -180,7 +267,7 @@ const AttachmentItem = ({
             if (isStart) {
               ph.startAttachments = (
                 ph.startAttachments ??
-                (["cis", "iso", "ramp", "exp"] as const).filter(
+                ALL_ATTACHMENT_TYPES.filter(
                   (typ) => ph[typ]?.start,
                 )
               ).filter((a: string) => a !== type);
@@ -188,7 +275,7 @@ const AttachmentItem = ({
             } else {
               ph.endAttachments = (
                 ph.endAttachments ??
-                (["cis", "iso", "ramp", "exp"] as const).filter(
+                ALL_ATTACHMENT_TYPES.filter(
                   (typ) => ph[typ]?.end,
                 )
               ).filter((a: string) => a !== type);
@@ -215,6 +302,9 @@ export const LayoutModal = ({
 }: LayoutModalProps) => {
   const p = state.phases[state.activeIndex];
   const startPostNum = isOpen ? LayoutMath.getStartPostNum(state.phases, state.activeIndex) : 0;
+
+  const [editingRedTitle, setEditingRedTitle] = useState(false);
+  const [editingBlueTitle, setEditingBlueTitle] = useState(false);
 
   // Local state for the new lug form to avoid ref usage for segmented controls
   const [newLug, setNewLug] = useState<{
@@ -263,7 +353,7 @@ export const LayoutModal = ({
             style={{ height: "40px" }}
           >
             <h3 className="font-bold text-zinc-700 uppercase tracking-tight text-sm">
-              Section {state.activeIndex + 1} Settings
+              Section {state.activeIndex + 1} Layout
             </h3>
             <button
               type="button"
@@ -407,9 +497,44 @@ export const LayoutModal = ({
                 {/* Positive Rail */}
                 <div className="space-y-2 bg-red-50/50 p-2 sm:p-3 rounded-md border border-red-200/60 shadow-sm">
                   <div className="flex items-center justify-between border-b border-red-200/50 pb-1 px-1">
-                    <h4 className="text-[11px] sm:text-xs font-black text-red-600 uppercase tracking-widest text-center flex-1 ml-4">
-                      Positive (+)
-                    </h4>
+                    {editingRedTitle ? (
+                      <div className="flex items-center gap-1 flex-1 mx-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          className="w-full bg-white border border-red-300 rounded px-1.5 py-0.5 text-xs font-bold text-red-700 outline-none focus:ring-1 focus:ring-red-500"
+                          value={p.red.name ?? "Positive Rail"}
+                          onChange={(e) =>
+                            updatePhase((phase) => {
+                              phase.red.name = e.target.value;
+                            })
+                          }
+                          onBlur={() => setEditingRedTitle(false)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === "Escape") setEditingRedTitle(false);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditingRedTitle(false)}
+                          className="text-xs bg-red-600 text-white font-bold px-1.5 py-0.5 rounded"
+                        >
+                          ✓
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditingRedTitle(true)}
+                        className="flex items-center justify-center gap-1 flex-1 cursor-pointer hover:bg-red-100/60 py-0.5 px-1 rounded transition-colors group"
+                        title="Click to edit rail name"
+                      >
+                        <h4 className="text-[11px] sm:text-xs font-black text-red-600 uppercase tracking-widest text-center truncate max-w-[120px] sm:max-w-[160px]">
+                          {p.red.name || "Positive Rail"}
+                        </h4>
+                        <Pencil size={11} className="text-red-400 group-hover:text-red-600 shrink-0" />
+                      </button>
+                    )}
                     <button
                       onClick={() =>
                         updatePhase((phase) => {
@@ -457,7 +582,7 @@ export const LayoutModal = ({
                         htmlFor="positive-start-input"
                         className="text-[9px] sm:text-[10px] font-bold text-zinc-500 uppercase"
                       >
-                        Start Offset
+                        Start Side Offset
                       </label>
                       <select
                         value={p.red.startRefPostIndex ?? 0}
@@ -518,7 +643,7 @@ export const LayoutModal = ({
                         htmlFor="positive-end-input"
                         className="text-[9px] sm:text-[10px] font-bold text-zinc-500 uppercase"
                       >
-                        End Offset
+                        End Side Offset
                       </label>
                       <select
                         value={p.red.endRefPostIndex ?? p.posts.length - 1}
@@ -577,9 +702,44 @@ export const LayoutModal = ({
                 {/* Negative Rail */}
                 <div className="space-y-2 bg-blue-50/50 p-2 sm:p-3 rounded-md border border-blue-200/60 shadow-sm">
                   <div className="flex items-center justify-between border-b border-blue-200/50 pb-1 px-1">
-                    <h4 className="text-[11px] sm:text-xs font-black text-blue-600 uppercase tracking-widest text-center flex-1 ml-4">
-                      Negative (-)
-                    </h4>
+                    {editingBlueTitle ? (
+                      <div className="flex items-center gap-1 flex-1 mx-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          className="w-full bg-white border border-blue-300 rounded px-1.5 py-0.5 text-xs font-bold text-blue-700 outline-none focus:ring-1 focus:ring-blue-500"
+                          value={p.blue.name ?? "Negative Rail"}
+                          onChange={(e) =>
+                            updatePhase((phase) => {
+                              phase.blue.name = e.target.value;
+                            })
+                          }
+                          onBlur={() => setEditingBlueTitle(false)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === "Escape") setEditingBlueTitle(false);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditingBlueTitle(false)}
+                          className="text-xs bg-blue-600 text-white font-bold px-1.5 py-0.5 rounded"
+                        >
+                          ✓
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditingBlueTitle(true)}
+                        className="flex items-center justify-center gap-1 flex-1 cursor-pointer hover:bg-blue-100/60 py-0.5 px-1 rounded transition-colors group"
+                        title="Click to edit rail name"
+                      >
+                        <h4 className="text-[11px] sm:text-xs font-black text-blue-600 uppercase tracking-widest text-center truncate max-w-[120px] sm:max-w-[160px]">
+                          {p.blue.name || "Negative Rail"}
+                        </h4>
+                        <Pencil size={11} className="text-blue-400 group-hover:text-blue-600 shrink-0" />
+                      </button>
+                    )}
                     <button
                       onClick={() =>
                         updatePhase((phase) => {
@@ -679,7 +839,7 @@ export const LayoutModal = ({
                         htmlFor="negative-start-input"
                         className="text-[9px] sm:text-[10px] font-bold text-zinc-500 uppercase"
                       >
-                        Start Offset
+                        Start Side Offset
                       </label>
                       <div className="flex gap-1">
                         <select
@@ -741,7 +901,7 @@ export const LayoutModal = ({
                         htmlFor="negative-end-input"
                         className="text-[9px] sm:text-[10px] font-bold text-zinc-500 uppercase"
                       >
-                        End Offset
+                        End Side Offset
                       </label>
                       <div className="flex gap-1">
                         <select
@@ -817,13 +977,13 @@ export const LayoutModal = ({
                       onClick={() => setNewLug((l) => ({ ...l, rail: "red" }))}
                       className={`flex-1 text-[11px] py-1.5 sm:py-2 rounded-[3px] font-bold transition-all ${newLug.rail === "red" ? "bg-red-500 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
                     >
-                      + RED
+                      (+) RED
                     </button>
                     <button
                       onClick={() => setNewLug((l) => ({ ...l, rail: "blue" }))}
                       className={`flex-1 text-[11px] py-1.5 sm:py-2 rounded-[3px] font-bold transition-all ${newLug.rail === "blue" ? "bg-blue-500 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
                     >
-                      - BLU
+                      (-) BLU
                     </button>
                   </div>
 
@@ -942,17 +1102,17 @@ export const LayoutModal = ({
             {/* Ghosted Attachments */}
             <div className="lg:col-span-4 space-y-3 bg-zinc-800 p-4 rounded-xl border border-zinc-700 shadow-md mt-4">
               <h4 className="flex items-center justify-between text-xs font-black text-zinc-300 uppercase tracking-widest border-b border-zinc-700 pb-2">
-                <span>Ghosted Attachments</span>
+                <span>FIXED LENGTH PARTS</span>
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-semibold text-zinc-500 uppercase">
-                    Layout Start
+                    PR START SIDE
                   </span>
                   {(() => {
                     const activeAtts =
                       p.startAttachments ??
-                      (["cis", "iso", "ramp", "exp"] as const).filter(
+                      ALL_ATTACHMENT_TYPES.filter(
                         (t) => p[t]?.start,
                       );
                     return (
@@ -973,14 +1133,15 @@ export const LayoutModal = ({
                               <AttachmentItem
                                 key={t}
                                 type={t}
+                                phase={p}
                                 updatePhase={updatePhase}
                                 isStart={true}
                               />
                             ))}
                           </Reorder.Group>
                         )}
-                        <div className="flex gap-2">
-                          {(["cis", "iso", "ramp", "exp"] as const).map((t) => {
+                        <div className="flex flex-wrap gap-2">
+                          {ALL_ATTACHMENT_TYPES.map((t) => {
                             if (activeAtts.includes(t)) return null;
                             return (
                               <button
@@ -990,9 +1151,7 @@ export const LayoutModal = ({
                                   updatePhase((phase) => {
                                     const current =
                                       phase.startAttachments ??
-                                      (
-                                        ["cis", "iso", "ramp", "exp"] as const
-                                      ).filter((typ) => phase[typ]?.start);
+                                      ALL_ATTACHMENT_TYPES.filter((typ) => phase[typ]?.start);
                                     phase.startAttachments = [...current, t];
                                     phase[t] = {
                                       ...(phase[t] || {
@@ -1003,9 +1162,9 @@ export const LayoutModal = ({
                                     phase[t]!.start = true;
                                   })
                                 }
-                                className="flex-1 px-3 py-1.5 text-xs font-medium rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors"
+                                className="px-3 py-1.5 text-xs font-medium rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors whitespace-nowrap"
                               >
-                                + {t.toUpperCase()}
+                                + {t === "custom-rail" ? "CUSTOM RAIL" : t.toUpperCase()}
                               </button>
                             );
                           })}
@@ -1017,12 +1176,12 @@ export const LayoutModal = ({
 
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-semibold text-zinc-500 uppercase">
-                    Layout End
+                    PR END SIDE
                   </span>
                   {(() => {
                     const activeAtts =
                       p.endAttachments ??
-                      (["cis", "iso", "ramp", "exp"] as const).filter(
+                      ALL_ATTACHMENT_TYPES.filter(
                         (t) => p[t]?.end,
                       );
                     return (
@@ -1043,14 +1202,15 @@ export const LayoutModal = ({
                               <AttachmentItem
                                 key={t}
                                 type={t}
+                                phase={p}
                                 updatePhase={updatePhase}
                                 isStart={false}
                               />
                             ))}
                           </Reorder.Group>
                         )}
-                        <div className="flex gap-2">
-                          {(["cis", "iso", "ramp", "exp"] as const).map((t) => {
+                        <div className="flex flex-wrap gap-2">
+                          {ALL_ATTACHMENT_TYPES.map((t) => {
                             if (activeAtts.includes(t)) return null;
                             return (
                               <button
@@ -1060,9 +1220,7 @@ export const LayoutModal = ({
                                   updatePhase((phase) => {
                                     const current =
                                       phase.endAttachments ??
-                                      (
-                                        ["cis", "iso", "ramp", "exp"] as const
-                                      ).filter((typ) => phase[typ]?.end);
+                                      ALL_ATTACHMENT_TYPES.filter((typ) => phase[typ]?.end);
                                     phase.endAttachments = [...current, t];
                                     phase[t] = {
                                       ...(phase[t] || {
@@ -1073,9 +1231,9 @@ export const LayoutModal = ({
                                     phase[t]!.end = true;
                                   })
                                 }
-                                className="flex-1 px-3 py-1.5 text-xs font-medium rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors"
+                                className="px-3 py-1.5 text-xs font-medium rounded border border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors whitespace-nowrap"
                               >
-                                + {t.toUpperCase()}
+                                + {t === "custom-rail" ? "CUSTOM RAIL" : t.toUpperCase()}
                               </button>
                             );
                           })}
@@ -1108,7 +1266,7 @@ export const LayoutModal = ({
             </button>
           </div>
           <div className="p-3 border-t bg-zinc-50 hidden sm:flex justify-between items-center">
-             <span className="text-xs text-zinc-400 font-medium">Configure rail settings globally and per section.</span>
+             <span className="text-xs text-zinc-400 font-medium">THIS IS WHERE TO ADD PARTS, DEFINE OFFSETS & DIMENSIONS.</span>
              <button
                type="button"
                onClick={() => {
@@ -1123,7 +1281,7 @@ export const LayoutModal = ({
                }}
                className="text-xs font-bold px-3 py-1.5 rounded border border-zinc-300 text-zinc-600 bg-white hover:text-zinc-900 hover:bg-zinc-100 transition-colors shadow-sm"
             >
-               Hard Refresh / Update App
+               Hard Refresh / Update
             </button>
           </div>
         </motion.div>

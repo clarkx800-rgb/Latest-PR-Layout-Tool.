@@ -1,5 +1,5 @@
 import { type Phase, type Hitbox, type HitboxType } from "../types";
-import { RENDER_CONFIG } from "../constants";
+import { RENDER_CONFIG, DEFAULT_ZOOM } from "../constants";
 import { getCutToFitLength } from "./math";
 import { formatMeasurement, type Unit } from "./units";
 
@@ -11,29 +11,11 @@ export const getAbsoluteMm = (vMm: number, p: Phase) => {
   return vMm;
 };
 
-export const getMargins = (p: Phase) => {
-  let startGhosts = 0,
-    endGhosts = 0;
-  if (p.cis?.start) startGhosts++;
-  if (p.iso?.start) startGhosts++;
-  if (p.ramp?.start) startGhosts++;
-  if (p.exp?.start) startGhosts++;
-
-  if (p.cis?.end) endGhosts++;
-  if (p.iso?.end) endGhosts++;
-  if (p.ramp?.end) endGhosts++;
-  if (p.exp?.end) endGhosts++;
-
-  // Calculate pixel width used by ghost blocks extending outwards
-  const lGhostsW = startGhosts > 0 ? (startGhosts - 1) * 90 + 80 : 0;
-  const rGhostsW = endGhosts > 0 ? (endGhosts - 1) * 90 + 80 : 0;
-
-  // Ensure left and right empty spaces are equal for perfect physical centering
-  const basePadding = 120;
-
+export const getMargins = (_p: Phase) => {
+  const basePadding = 110;
   return { 
-    startPx: basePadding + lGhostsW, 
-    endPx: basePadding + rGhostsW 
+    startPx: basePadding, 
+    endPx: basePadding 
   };
 };
 
@@ -44,7 +26,7 @@ export const getBasePixPerMm = (p: Phase, canvasWidth: number) => {
   return (canvasWidth - m.startPx - m.endPx) / (vMax - vMin || 1);
 };
 
-const getPx = (mm: number, p: Phase, canvasWidth: number, isRTL: boolean) => {
+export const getPx = (mm: number, p: Phase, canvasWidth: number, isRTL: boolean) => {
   const m = getMargins(p);
   const leftMargin = isRTL ? m.endPx : m.startPx;
   const rightMargin = isRTL ? m.startPx : m.endPx;
@@ -62,6 +44,18 @@ const getPx = (mm: number, p: Phase, canvasWidth: number, isRTL: boolean) => {
   } else {
     return leftMargin + offsetFromMin * pixPerMm;
   }
+};
+
+export const getAutoCenteredPan = (
+  _phase: Phase,
+  canvasWidth: number = RENDER_CONFIG.DIMS.CANVAS_W,
+  canvasHeight: number = RENDER_CONFIG.DIMS.CANVAS_H,
+  _isRTL: boolean = false,
+  scale: number = DEFAULT_ZOOM
+) => {
+  const panX = (canvasWidth / 2) * (1 - scale);
+  const panY = (canvasHeight / 2) * (1 - scale);
+  return { panX, panY };
 };
 
 const drawDim = (
@@ -344,24 +338,28 @@ export const drawLayout = (
     hitboxId: string,
     isHovered: boolean = false,
     basePixPerMm?: number,
+    customMm: number = 1000,
+    railColor: string = RENDER_CONFIG.COLORS.RED_RAIL,
+    position?: "start" | "end",
+    isRedRail?: boolean,
   ): number => {
     ctx.save();
-
-    // Draw ISO under the rail if needed. The painter algorithm already draws this before rails, so it's fine.
-    // However, if we need to put it behind other ghost blocks, we can't easily without a separate loop,
-    // but drawing it first (which it is if it's the first attachment, though order is by user array)
-    // usually suffices. Let's just draw it with standard overlap.
 
     const isGradient = text === "CIS" || text === "RAMP";
     const isIso = text === "ISO";
     const isExp = text === "EXP";
+    const isCustomRail = text.includes("CUSTOM");
     const baseW = 80;
 
     let logicalW = baseW;
     let visualW = baseW;
     let visualH = RAIL_H;
 
-    if (isExp) {
+    if (isCustomRail) {
+      logicalW = customMm * (basePixPerMm || 0.05);
+      visualW = logicalW;
+      visualH = RAIL_H;
+    } else if (isExp) {
       logicalW = 3987 * (basePixPerMm || 0.05);
       visualW = logicalW;
       visualH = RAIL_H;
@@ -489,7 +487,11 @@ export const drawLayout = (
 
       ctx.strokeStyle = borderGrad;
     } else {
-      if (isIso) {
+      if (isCustomRail) {
+        const railColor = yPos <= midY ? RENDER_CONFIG.COLORS.RED_RAIL : RENDER_CONFIG.COLORS.BLUE_RAIL;
+        ctx.fillStyle = isHovered ? (yPos <= midY ? "#f87171" : "#60a5fa") : railColor;
+        ctx.strokeStyle = isHovered ? "rgba(16, 185, 129, 1)" : "#000000";
+      } else if (isIso) {
         ctx.fillStyle = isHovered
           ? "rgba(0, 0, 0, 0.85)"
           : "rgba(0, 0, 0, 0.75)";
@@ -507,12 +509,12 @@ export const drawLayout = (
     }
 
     if (!isExp) {
-      if (text === "RAMP" || isIso) {
+      if (text === "RAMP" || isIso || isCustomRail) {
         ctx.setLineDash([]);
       } else {
         ctx.setLineDash([5, 5]);
       }
-      ctx.lineWidth = isHovered ? 3 : 2;
+      ctx.lineWidth = isHovered ? 3 : (isCustomRail ? 1 : 2);
 
       // Draw the box using visual constraints
       ctx.fillRect(drawX, drawY, visualW, visualH);
@@ -521,7 +523,7 @@ export const drawLayout = (
 
     if (text === "EXP" || text === "RAMP") {
       ctx.fillStyle = isHovered ? "rgba(16, 185, 129, 1)" : "rgba(0, 0, 0, 1)";
-    } else if (isIso) {
+    } else if (isIso || isCustomRail) {
       ctx.fillStyle = isHovered ? "rgba(16, 185, 129, 1)" : "#ffffff";
     } else {
       ctx.fillStyle = isHovered
@@ -539,9 +541,116 @@ export const drawLayout = (
     } else if (isGradient && text !== "RAMP") {
       textX = isLeftwards ? currentAnchor - 40 : currentAnchor + 40;
     }
-    const displayText = text === "RAMP" ? "R A M P" : text;
-    ctx.fillText(displayText, textX, yPos);
+    const displayText = text === "RAMP" ? "R A M P" : isCustomRail ? "" : text;
+    if (displayText) {
+      ctx.fillText(displayText, textX, yPos);
+    }
     ctx.restore();
+
+    if (isCustomRail && position) {
+      const outerTipPx = currentAnchor + (isLeftwards ? -logicalW : logicalW);
+      const handleId = position === "start"
+        ? (isRedRail ? "custom-rail-start-handle" : "custom-rail-blue-start-handle")
+        : (isRedRail ? "custom-rail-end-handle" : "custom-rail-blue-end-handle");
+      const handleType = handleId;
+      
+      drawHandle(
+        outerTipPx,
+        yPos,
+        handleId,
+        handleType as HitboxType,
+        railColor,
+      );
+
+      if (isRedRail ? phase.red.visible : phase.blue.visible) {
+        const dimY = isRedRail ? yPos - 100 : yPos + 100;
+        const dimHitboxId = position === "start"
+          ? (isRedRail ? "custom-rail-start" : "custom-rail-blue-start")
+          : (isRedRail ? "custom-rail-end" : "custom-rail-blue-end");
+        const dimHitboxType = dimHitboxId;
+        const dimLabel = isRedRail
+          ? `(+) ${formatMeasurement(customMm, unit)}`
+          : `(-) ${formatMeasurement(customMm, unit)}`;
+        const dimColor = RENDER_CONFIG.COLORS.BLACK;
+        drawDim(
+          ctx,
+          currentAnchor,
+          outerTipPx,
+          dimY,
+          dimLabel,
+          dimColor,
+          {
+            hitboxes,
+            id: dimHitboxId,
+            type: dimHitboxType as HitboxType,
+            value: customMm,
+            isHovered: hoveredHitbox === dimHitboxId,
+          },
+          !isRedRail
+        );
+        drawDropLine(currentAnchor, dimY, yPos, dimColor);
+        drawDropLine(outerTipPx, dimY, yPos, dimColor);
+
+        // Draw custom rail text above (+) #### / (-) ####
+        const customName = position === "start"
+          ? (isRedRail ? (phase['custom-rail']?.startName || "CUSTOM RAIL") : (phase['custom-rail']?.blueStartName || "CUSTOM RAIL"))
+          : (isRedRail ? (phase['custom-rail']?.endName || "CUSTOM RAIL") : (phase['custom-rail']?.blueEndName || "CUSTOM RAIL"));
+
+        const nameHitboxId = position === "start"
+          ? (isRedRail ? "custom-rail-start-name" : "custom-rail-blue-start-name")
+          : (isRedRail ? "custom-rail-end-name" : "custom-rail-blue-end-name");
+
+        const midX = currentAnchor + (outerTipPx - currentAnchor) / 2;
+        const nameY = isRedRail ? dimY - 35 : dimY + 35;
+
+        ctx.save();
+        ctx.font = "bold 16px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = isRedRail ? "bottom" : "top";
+
+        const nameMetrics = ctx.measureText(customName);
+        const nameW = Math.max(100, nameMetrics.width + 24);
+        const nameH = 24;
+        const isNameHovered = hoveredHitbox === nameHitboxId;
+
+        const nameBoxX = midX - nameW / 2;
+        const nameBoxY = isRedRail ? nameY - nameH + 2 : nameY - 2;
+
+        if (isNameHovered) {
+          ctx.fillStyle = "rgba(16, 185, 129, 0.2)";
+          ctx.strokeStyle = "#10b981";
+          ctx.lineWidth = 1.5;
+          if ((ctx as any).roundRect) {
+            ctx.beginPath();
+            (ctx as any).roundRect(nameBoxX, nameBoxY, nameW, nameH, 4);
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            ctx.fillRect(nameBoxX, nameBoxY, nameW, nameH);
+            ctx.strokeRect(nameBoxX, nameBoxY, nameW, nameH);
+          }
+        }
+
+        ctx.fillStyle = isRedRail ? RENDER_CONFIG.COLORS.RED_RAIL : RENDER_CONFIG.COLORS.BLUE_RAIL;
+        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.lineWidth = 4;
+        ctx.strokeText(customName, midX, nameY);
+        ctx.fillText(customName, midX, nameY);
+        ctx.restore();
+
+        if (!isExport && hitboxes) {
+          hitboxes.push({
+            id: nameHitboxId,
+            type: nameHitboxId as HitboxType,
+            x: nameBoxX,
+            y: nameBoxY,
+            w: nameW,
+            h: nameH,
+            value: 0,
+          });
+        }
+      }
+    }
 
     if (!isExport && hitboxes) {
       hitboxes.push({
@@ -617,12 +726,13 @@ export const drawLayout = (
   };
 
   // Lugs migration handled elsewhere, but let's grab our fallback arrays
+  const ALL_ATTS = ["cis", "iso", "ramp", "exp", "custom-rail"] as const;
   const startAtts =
     phase.startAttachments ??
-    (["cis", "iso", "ramp", "exp"] as const).filter((t) => phase[t]?.start);
+    ALL_ATTS.filter((t) => phase[t]?.start);
   const endAtts =
     phase.endAttachments ??
-    (["cis", "iso", "ramp", "exp"] as const).filter((t) => phase[t]?.end);
+    ALL_ATTS.filter((t) => phase[t]?.end);
 
   const drawVisibilityToggle = (
     isVisible: boolean,
@@ -739,29 +849,39 @@ export const drawLayout = (
     let redStartAccW = 0,
       redEndAccW = 0;
     startAtts.forEach((t) => {
+      const customMm = phase['custom-rail']?.startMm ?? 1000;
       const drawnW = drawGhostBlock(
         rsPx,
         redY,
         !isRTL,
-        t.toUpperCase(),
+        t === "custom-rail" ? "CUSTOM RAIL" : t.toUpperCase(),
         redStartAccW,
         `ghost-${t}-start`,
         hoveredHitbox === `ghost-${t}-start`,
         basePixPerMm,
+        customMm,
+        RENDER_CONFIG.COLORS.RED_RAIL,
+        "start",
+        true
       );
       redStartAccW += drawnW;
     });
 
     endAtts.forEach((t) => {
+      const customMm = phase['custom-rail']?.endMm ?? 1000;
       const drawnW = drawGhostBlock(
         rePx,
         redY,
         isRTL,
-        t.toUpperCase(),
+        t === "custom-rail" ? "CUSTOM RAIL" : t.toUpperCase(),
         redEndAccW,
         `ghost-${t}-end`,
         hoveredHitbox === `ghost-${t}-end`,
         basePixPerMm,
+        customMm,
+        RENDER_CONFIG.COLORS.RED_RAIL,
+        "end",
+        true
       );
       redEndAccW += drawnW;
     });
@@ -850,7 +970,8 @@ export const drawLayout = (
 
     const redGapY = redY - 50;
     if (showPosts) {
-      if (phase.red.startMm !== 0 || startRefIdx > 0) {
+      const isStartGhosted = phase.ghostedPosts?.includes(startRefIdx);
+      if (!isStartGhosted && (phase.red.startMm !== 0 || startRefIdx > 0)) {
         const refPostPx = getPx(startRefAbsoluteMm, phase, canvasWidth, isRTL);
         const edgePx = getEdgePx(rsPx, refPostPx);
         drawDim(
@@ -870,7 +991,8 @@ export const drawLayout = (
         );
         drawDropLine(edgePx, redGapY, redY, RENDER_CONFIG.COLORS.RED_RAIL);
       }
-      if (phase.red.endMm !== 0 || endRefIdx < phase.posts.length - 1) {
+      const isEndGhosted = phase.ghostedPosts?.includes(endRefIdx);
+      if (!isEndGhosted && (phase.red.endMm !== 0 || endRefIdx < phase.posts.length - 1)) {
         const refPostPx = getPx(endRefAbsoluteMm, phase, canvasWidth, isRTL);
         const edgePx = getEdgePx(rePx, refPostPx);
         drawDim(
@@ -893,23 +1015,58 @@ export const drawLayout = (
     }
     const redTotalY = redGapY - 50;
 
+    const redNameText = phase.red.name || "Positive Rail";
+    const redNameX = rsPx + (rePx - rsPx) / 2;
+    const redNameY = redTotalY - 35;
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
     ctx.font = "bold 16px Inter, sans-serif";
+
+    const redNameMetrics = ctx.measureText(redNameText);
+    const redNameW = Math.max(100, redNameMetrics.width + 24);
+    const redNameH = 24;
+    const redNameBoxX = redNameX - redNameW / 2;
+    const redNameBoxY = redNameY - redNameH + 2;
+
+    if (hoveredHitbox === "red-name") {
+      ctx.fillStyle = "rgba(16, 185, 129, 0.2)";
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 1.5;
+      if ((ctx as any).roundRect) {
+        ctx.beginPath();
+        (ctx as any).roundRect(redNameBoxX, redNameBoxY, redNameW, redNameH, 4);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(redNameBoxX, redNameBoxY, redNameW, redNameH);
+        ctx.strokeRect(redNameBoxX, redNameBoxY, redNameW, redNameH);
+      }
+    }
+
     ctx.fillStyle = RENDER_CONFIG.COLORS.RED_RAIL;
     ctx.lineWidth = 4;
     ctx.strokeStyle = "rgba(255,255,255,0.9)";
-    ctx.strokeText("Positive Rail", rsPx + (rePx - rsPx) / 2, redTotalY - 35);
-    ctx.fillText("Positive Rail", rsPx + (rePx - rsPx) / 2, redTotalY - 35);
+    ctx.strokeText(redNameText, redNameX, redNameY);
+    ctx.fillText(redNameText, redNameX, redNameY);
     ctx.restore();
+
+    hitboxes.push({
+      id: "red-name",
+      type: "red-name",
+      x: redNameBoxX,
+      y: redNameBoxY,
+      w: redNameW,
+      h: redNameH,
+      value: 0,
+    });
 
     const roundedTotalRed = isCutToFit
       ? getCutToFitLength(phase.red.totalMm)
       : phase.red.totalMm;
     const redTotalText = isCutToFit
       ? `(+) ON-SITE-CUT ≯${formatMeasurement(roundedTotalRed, unit)}`
-      : `(+) Total: ${formatMeasurement(phase.red.totalMm, unit)}`;
+      : `(+) ${formatMeasurement(phase.red.totalMm, unit)}`;
 
     drawDim(
       ctx,
@@ -926,6 +1083,8 @@ export const drawLayout = (
         isHovered: hoveredHitbox === "red-total",
       },
     );
+    drawDropLine(rsPx, redTotalY, redY, RENDER_CONFIG.COLORS.BLACK);
+    drawDropLine(rePx, redTotalY, redY, RENDER_CONFIG.COLORS.BLACK);
   }
 
   // Blue Rail
@@ -974,29 +1133,39 @@ export const drawLayout = (
     let blueStartAccW = 0,
       blueEndAccW = 0;
     startAtts.forEach((t) => {
+      const customMm = phase['custom-rail']?.blueStartMm ?? phase['custom-rail']?.startMm ?? 1000;
       const drawnW = drawGhostBlock(
         bsPx,
         blueY,
         !isRTL,
-        t.toUpperCase(),
+        t === "custom-rail" ? "CUSTOM RAIL" : t.toUpperCase(),
         blueStartAccW,
         `ghost-${t}-start`,
         hoveredHitbox === `ghost-${t}-start`,
         basePixPerMm,
+        customMm,
+        RENDER_CONFIG.COLORS.BLUE_RAIL,
+        "start",
+        false
       );
       blueStartAccW += drawnW;
     });
 
     endAtts.forEach((t) => {
+      const customMm = phase['custom-rail']?.blueEndMm ?? phase['custom-rail']?.endMm ?? 1000;
       const drawnW = drawGhostBlock(
         bePx,
         blueY,
         isRTL,
-        t.toUpperCase(),
+        t === "custom-rail" ? "CUSTOM RAIL" : t.toUpperCase(),
         blueEndAccW,
         `ghost-${t}-end`,
         hoveredHitbox === `ghost-${t}-end`,
         basePixPerMm,
+        customMm,
+        RENDER_CONFIG.COLORS.BLUE_RAIL,
+        "end",
+        false
       );
       blueEndAccW += drawnW;
     });
@@ -1085,8 +1254,9 @@ export const drawLayout = (
     if (showPosts) {
       if (phase.blue.startMm !== 0 || phase.blue.startRefType) {
         let refAbsMm = redTipAbsoluteMm; // default 'red-start'
+        let blueStartRefIdx = 0;
         if (phase.blue.startRefType === "post") {
-          const blueStartRefIdx =
+          blueStartRefIdx =
             typeof phase.blue.startRefPostIndex === "number"
               ? phase.blue.startRefPostIndex
               : 0;
@@ -1094,31 +1264,38 @@ export const drawLayout = (
         } else if (phase.blue.startRefType === "red-end")
           refAbsMm = redEndAbsoluteMm;
 
-        const refPx = getPx(refAbsMm, phase, canvasWidth, isRTL);
-        const edgePx =
-          phase.blue.startRefType === "post" ? getEdgePx(bsPx, refPx) : refPx;
-        drawDim(
-          ctx,
-          bsPx,
-          edgePx,
-          blueGapY,
-          `${phase.blue.startMm > 0 ? "+" : ""}${formatMeasurement(phase.blue.startMm, unit)}`,
-          RENDER_CONFIG.COLORS.BLUE_RAIL,
-          {
-            hitboxes,
-            id: "blue-start",
-            type: "blue-start",
-            value: phase.blue.startMm,
-            isHovered: hoveredHitbox === "blue-start",
-          },
-          true,
-        );
-        drawDropLine(edgePx, blueGapY, blueY, RENDER_CONFIG.COLORS.BLUE_RAIL);
+        const isStartGhosted =
+          phase.blue.startRefType === "post" &&
+          phase.ghostedPosts?.includes(blueStartRefIdx);
+
+        if (!isStartGhosted) {
+          const refPx = getPx(refAbsMm, phase, canvasWidth, isRTL);
+          const edgePx =
+            phase.blue.startRefType === "post" ? getEdgePx(bsPx, refPx) : refPx;
+          drawDim(
+            ctx,
+            bsPx,
+            edgePx,
+            blueGapY,
+            `${phase.blue.startMm > 0 ? "+" : ""}${formatMeasurement(phase.blue.startMm, unit)}`,
+            RENDER_CONFIG.COLORS.BLUE_RAIL,
+            {
+              hitboxes,
+              id: "blue-start",
+              type: "blue-start",
+              value: phase.blue.startMm,
+              isHovered: hoveredHitbox === "blue-start",
+            },
+            true,
+          );
+          drawDropLine(edgePx, blueGapY, blueY, RENDER_CONFIG.COLORS.BLUE_RAIL);
+        }
       }
       if (phase.blue.endMm !== 0 || phase.blue.endRefType) {
         let refAbsMm = redEndAbsoluteMm; // default 'red-end'
+        let blueEndRefIdx = phase.posts.length - 1;
         if (phase.blue.endRefType === "post") {
-          const blueEndRefIdx =
+          blueEndRefIdx =
             typeof phase.blue.endRefPostIndex === "number"
               ? phase.blue.endRefPostIndex
               : phase.posts.length - 1;
@@ -1126,47 +1303,88 @@ export const drawLayout = (
         } else if (phase.blue.endRefType === "red-start")
           refAbsMm = redTipAbsoluteMm;
 
-        const refPx = getPx(refAbsMm, phase, canvasWidth, isRTL);
-        const edgePx =
-          phase.blue.endRefType === "post" ? getEdgePx(bePx, refPx) : refPx;
-        drawDim(
-          ctx,
-          bePx,
-          edgePx,
-          blueGapY,
-          `${phase.blue.endMm > 0 ? "+" : ""}${formatMeasurement(phase.blue.endMm, unit)}`,
-          RENDER_CONFIG.COLORS.BLUE_RAIL,
-          {
-            hitboxes,
-            id: "blue-end",
-            type: "blue-end",
-            value: phase.blue.endMm,
-            isHovered: hoveredHitbox === "blue-end",
-          },
-          true,
-        );
-        drawDropLine(edgePx, blueGapY, blueY, RENDER_CONFIG.COLORS.BLUE_RAIL);
+        const isEndGhosted =
+          phase.blue.endRefType === "post" &&
+          phase.ghostedPosts?.includes(blueEndRefIdx);
+
+        if (!isEndGhosted) {
+          const refPx = getPx(refAbsMm, phase, canvasWidth, isRTL);
+          const edgePx =
+            phase.blue.endRefType === "post" ? getEdgePx(bePx, refPx) : refPx;
+          drawDim(
+            ctx,
+            bePx,
+            edgePx,
+            blueGapY,
+            `${phase.blue.endMm > 0 ? "+" : ""}${formatMeasurement(phase.blue.endMm, unit)}`,
+            RENDER_CONFIG.COLORS.BLUE_RAIL,
+            {
+              hitboxes,
+              id: "blue-end",
+              type: "blue-end",
+              value: phase.blue.endMm,
+              isHovered: hoveredHitbox === "blue-end",
+            },
+            true,
+          );
+          drawDropLine(edgePx, blueGapY, blueY, RENDER_CONFIG.COLORS.BLUE_RAIL);
+        }
       }
     }
     const blueTotalY = blueGapY + 50;
 
+    const blueNameText = phase.blue.name || "Negative Rail";
+    const blueNameX = bsPx + (bePx - bsPx) / 2;
+    const blueNameY = blueTotalY + 35;
     ctx.save();
     ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
+    ctx.textBaseline = "top";
     ctx.font = "bold 16px Inter, sans-serif";
+
+    const blueNameMetrics = ctx.measureText(blueNameText);
+    const blueNameW = Math.max(100, blueNameMetrics.width + 24);
+    const blueNameH = 24;
+    const blueNameBoxX = blueNameX - blueNameW / 2;
+    const blueNameBoxY = blueNameY - 2;
+
+    if (hoveredHitbox === "blue-name") {
+      ctx.fillStyle = "rgba(16, 185, 129, 0.2)";
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 1.5;
+      if ((ctx as any).roundRect) {
+        ctx.beginPath();
+        (ctx as any).roundRect(blueNameBoxX, blueNameBoxY, blueNameW, blueNameH, 4);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillRect(blueNameBoxX, blueNameBoxY, blueNameW, blueNameH);
+        ctx.strokeRect(blueNameBoxX, blueNameBoxY, blueNameW, blueNameH);
+      }
+    }
+
     ctx.fillStyle = RENDER_CONFIG.COLORS.BLUE_RAIL;
     ctx.lineWidth = 4;
     ctx.strokeStyle = "rgba(255,255,255,0.9)";
-    ctx.strokeText("Negative Rail", bsPx + (bePx - bsPx) / 2, blueTotalY - 10);
-    ctx.fillText("Negative Rail", bsPx + (bePx - bsPx) / 2, blueTotalY - 10);
+    ctx.strokeText(blueNameText, blueNameX, blueNameY);
+    ctx.fillText(blueNameText, blueNameX, blueNameY);
     ctx.restore();
+
+    hitboxes.push({
+      id: "blue-name",
+      type: "blue-name",
+      x: blueNameBoxX,
+      y: blueNameBoxY,
+      w: blueNameW,
+      h: blueNameH,
+      value: 0,
+    });
 
     const roundedTotalBlue = isCutToFit
       ? getCutToFitLength(phase.blue.totalMm)
       : phase.blue.totalMm;
     const blueTotalText = isCutToFit
       ? `(-) ON-SITE-CUT ≯${formatMeasurement(roundedTotalBlue, unit)}`
-      : `(-) Total: ${formatMeasurement(phase.blue.totalMm, unit)}`;
+      : `(-) ${formatMeasurement(phase.blue.totalMm, unit)}`;
 
     drawDim(
       ctx,
@@ -1184,6 +1402,8 @@ export const drawLayout = (
       },
       true,
     );
+    drawDropLine(bsPx, blueTotalY, blueY, RENDER_CONFIG.COLORS.BLACK);
+    drawDropLine(bePx, blueTotalY, blueY, RENDER_CONFIG.COLORS.BLACK);
   }
 
   // Lugs
@@ -1519,9 +1739,10 @@ export const drawLayout = (
 
   if (!isExport) {
     if (activeIndex > 0) {
+      const prevText = prevSectionSide === "left" ? `← SECTION ${activeIndex}` : `SECTION ${activeIndex} →`;
       drawPhaseIndicator(
         prevSectionSide,
-        `SECTION ${activeIndex}`,
+        prevText,
         hoveredHitbox === "nav-prev",
       );
     }
@@ -1556,9 +1777,10 @@ export const drawLayout = (
     ctx.restore();
 
     if (activeIndex < totalPhases - 1) {
+      const nextText = nextSectionSide === "right" ? `SECTION ${activeIndex + 2} →` : `← SECTION ${activeIndex + 2}`;
       drawPhaseIndicator(
         nextSectionSide,
-        `SECTION ${activeIndex + 2}`,
+        nextText,
         hoveredHitbox === "nav-next",
       );
     }

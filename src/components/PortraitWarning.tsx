@@ -110,7 +110,7 @@ export const PortraitWarning = ({ phase, updatePhase, state, updateState }: Port
             aria-label="Comments"
             value={phase.comments}
             onChange={(e) => updatePhase(p => { p.comments = e.target.value.toUpperCase(); })}
-            placeholder="TYPE TECHNICIAN COMMENTS, SITE OBSERVATIONS, OR SHOP ASSEMBLY NOTES HERE..."
+            placeholder="COMMENTS, SITE OBSERVATIONS, OR SHOP ASSEMBLY NOTES HERE..."
             className="flex-1 min-h-0 w-full bg-zinc-50 border border-zinc-200 rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900/5 transition-all text-sm leading-relaxed uppercase"
           />
         </div>

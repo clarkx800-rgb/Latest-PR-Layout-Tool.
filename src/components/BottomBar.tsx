@@ -109,7 +109,7 @@ export const BottomBar = ({
 
   return (
     <>
-      <div className="flex w-full justify-between items-end gap-4 text-black">
+      <div className="flex w-full justify-between items-end gap-3 sm:gap-4 text-black">
         <div className="flex items-center bg-zinc-900/80 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl pointer-events-auto divide-x divide-white/10 overflow-hidden text-xs sm:text-sm font-bold text-white">
           {onToggleRTL && (
             <button 
@@ -169,6 +169,35 @@ export const BottomBar = ({
             title="Delete Section"
           >
             <Trash2 size={26} /> <span className="hidden 2xl:inline text-lg">Delete Section</span>
+          </button>
+        </div>
+
+        {/* Section Navigation Switcher */}
+        <div className="flex items-center bg-zinc-900/90 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl pointer-events-auto divide-x divide-white/10 overflow-hidden text-xs sm:text-sm font-bold text-white">
+          <button
+            onClick={onPrev}
+            disabled={state.activeIndex <= 0}
+            className={`${sqBtnClass} hover:text-emerald-400 active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all`}
+            title="Previous Section (Move Left)"
+          >
+            <ChevronLeft size={28} />
+          </button>
+          
+          <div className="h-[60px] sm:h-[70px] px-4 sm:px-6 flex items-center justify-center gap-2 select-none bg-white/5 font-mono">
+            <span className="text-zinc-400 text-xs uppercase tracking-wider hidden sm:inline">SECTION</span>
+            <span className="text-emerald-400 font-extrabold text-sm sm:text-base tracking-wider">
+              {state.activeIndex + 1}
+            </span>
+            <span className="text-zinc-500 text-xs sm:text-sm">/ {state.phases.length}</span>
+          </div>
+
+          <button
+            onClick={onNext}
+            disabled={state.activeIndex >= state.phases.length - 1}
+            className={`${sqBtnClass} hover:text-emerald-400 active:scale-95 disabled:opacity-30 disabled:pointer-events-none transition-all`}
+            title="Next Section (Move Right)"
+          >
+            <ChevronRight size={28} />
           </button>
         </div>
 

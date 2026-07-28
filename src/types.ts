@@ -11,6 +11,7 @@ export interface Lug {
 }
 
 export interface RailData {
+  name?: string;
   startMm: number;
   endMm: number;
   totalMm: number;
@@ -28,7 +29,7 @@ export interface ViewState {
   panY: number;
 }
 
-export type AttachmentType = 'cis' | 'iso' | 'ramp' | 'exp';
+export type AttachmentType = 'cis' | 'iso' | 'ramp' | 'exp' | 'custom-rail';
 
 export interface Phase {
   postCount: number;
@@ -43,6 +44,18 @@ export interface Phase {
   iso?: { start: boolean; end: boolean; };
   ramp?: { start: boolean; end: boolean; };
   exp?: { start: boolean; end: boolean; };
+  'custom-rail'?: {
+    start: boolean;
+    end: boolean;
+    startMm?: number;
+    endMm?: number;
+    blueStartMm?: number;
+    blueEndMm?: number;
+    startName?: string;
+    endName?: string;
+    blueStartName?: string;
+    blueEndName?: string;
+  };
 
   // Reorderable Arrays
   startAttachments?: AttachmentType[];
@@ -67,7 +80,7 @@ export interface AppState {
   subSub?: string;
 }
 
-export type HitboxType = 'red-start' | 'red-end' | 'red-total' | 'blue-start' | 'blue-end' | 'blue-total' | 'lug-dist' | 'post-count' | 'red-start-handle' | 'red-end-handle' | 'blue-start-handle' | 'blue-end-handle' | 'ghost-block' | 'flip-indicators' | 'nav-prev' | 'nav-next' | 'post-toggle' | 'rail-visibility-toggle' | 'red-rail-body' | 'blue-rail-body';
+export type HitboxType = 'red-start' | 'red-end' | 'red-total' | 'red-name' | 'blue-start' | 'blue-end' | 'blue-total' | 'blue-name' | 'lug-dist' | 'post-count' | 'red-start-handle' | 'red-end-handle' | 'blue-start-handle' | 'blue-end-handle' | 'custom-rail-start' | 'custom-rail-end' | 'custom-rail-start-handle' | 'custom-rail-end-handle' | 'custom-rail-blue-start' | 'custom-rail-blue-end' | 'custom-rail-blue-start-handle' | 'custom-rail-blue-end-handle' | 'custom-rail-start-name' | 'custom-rail-end-name' | 'custom-rail-blue-start-name' | 'custom-rail-blue-end-name' | 'ghost-block' | 'flip-indicators' | 'nav-prev' | 'nav-next' | 'post-toggle' | 'rail-visibility-toggle' | 'red-rail-body' | 'blue-rail-body';
 
 export interface Hitbox {
   id: string;

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Download, Upload, FileJson, FileType, FileText } from 'lucide-react';
 import { type AppState } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { drawLayout } from '../utils/drawer';
+import { drawLayout, getAutoCenteredPan } from '../utils/drawer';
 import { LayoutMath } from '../utils/math';
 import { RENDER_CONFIG, DEFAULT_ZOOM, DEFAULT_PAN_X, DEFAULT_PAN_Y } from '../constants';
 
@@ -67,20 +67,30 @@ export const FileModal = ({ isOpen, onClose, state, onLoad, preloadedPdfData, pr
         const data = JSON.parse(ev.target.result as string);
         if (data && data.phases) {
           const defaultState = { isRTL: false, workDirection: "Zero Direction", activeIndex: 0, phases: [] };
-          const safePhases = data.phases.map((p: any) => ({
-            postCount: 5, postSpanMm: 7998, posts: [], minMm: 0, maxMm: 9998, comments: "",
-            ...p,
-            red: { startMm: 1000, endMm: 1000, totalMm: 9998, visible: true, ...(p.red || {}) },
-            blue: { startMm: 1000, endMm: 1000, totalMm: 9998, visible: true, ...(p.blue || {}) },
-            lugs: p.lugs || [],
-            view: { scale: DEFAULT_ZOOM, panX: DEFAULT_PAN_X, panY: DEFAULT_PAN_Y, ...(p.view || {}) },
-            cis: { start: false, end: false, ...(p.cis || {}) },
-            iso: { start: false, end: false, ...(p.iso || {}) },
-            ramp: { start: false, end: false, ...(p.ramp || {}) },
-            exp: { start: false, end: false, ...(p.exp || {}) }
-          }));
+          const safePhases = data.phases.map((p: any) => {
+            const merged = {
+              postCount: 5, postSpanMm: 7998, posts: [], minMm: 0, maxMm: 9998, comments: "",
+              ...p,
+              red: { startMm: 1000, endMm: 1000, totalMm: 9998, visible: true, ...(p.red || {}) },
+              blue: { startMm: 1000, endMm: 1000, totalMm: 9998, visible: true, ...(p.blue || {}) },
+              lugs: p.lugs || [],
+              cis: { start: false, end: false, ...(p.cis || {}) },
+              iso: { start: false, end: false, ...(p.iso || {}) },
+              ramp: { start: false, end: false, ...(p.ramp || {}) },
+              exp: { start: false, end: false, ...(p.exp || {}) },
+              'custom-rail': { start: false, end: false, startMm: 1000, endMm: 1000, ...(p['custom-rail'] || {}) }
+            };
+            const autoPan = getAutoCenteredPan(merged, RENDER_CONFIG.DIMS.CANVAS_W, RENDER_CONFIG.DIMS.CANVAS_H, !!data.isRTL, p.view?.scale || DEFAULT_ZOOM);
+            merged.view = {
+              scale: p.view?.scale || DEFAULT_ZOOM,
+              panX: p.view?.panX !== undefined ? p.view.panX : autoPan.panX,
+              panY: p.view?.panY !== undefined ? p.view.panY : autoPan.panY
+            };
+            return merged;
+          });
 
-          onLoad({ ...defaultState, ...data, phases: safePhases });
+          const loadedState = { ...defaultState, ...data, phases: safePhases };
+          onLoad(LayoutMath.cascadeMath(loadedState));
           onClose();
         }
       } catch (err) {

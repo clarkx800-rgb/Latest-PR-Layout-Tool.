@@ -1,8 +1,8 @@
 import { jsPDF } from 'jspdf';
 import { type AppState } from '../types';
-import { drawLayout } from './drawer';
+import { drawLayout, getAutoCenteredPan } from './drawer';
 import { LayoutMath, getCutToFitLength } from './math';
-import { RENDER_CONFIG, DEFAULT_ZOOM, DEFAULT_PAN_X, DEFAULT_PAN_Y } from '../constants';
+import { RENDER_CONFIG, DEFAULT_ZOOM } from '../constants';
 import { formatMeasurement, type Unit } from './units';
 
 export const generatePdf = (state: AppState, unit?: Unit): jsPDF => {
@@ -91,12 +91,12 @@ export const generatePdf = (state: AppState, unit?: Unit): jsPDF => {
     // Section indicator (Middle)
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text(`SECTION ${i + 1} OF ${state.phases.length}`, margin + 138, margin + 15, { align: 'center' });
+    doc.text(`SECTION ${i + 1} OF ${state.phases.length}`, margin + contentWidth / 2, margin + 15, { align: 'center' });
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     const flowDir = state.isRTL ? 'Right to Left' : 'Left to Right';
-    doc.text(`Build Direction: ${flowDir}`, margin + 138, margin + 21, { align: 'center' });
+    doc.text(`Build Direction: ${flowDir}`, margin + contentWidth / 2, margin + 21, { align: 'center' });
 
     // Right side: Totals
     doc.setFontSize(11);
@@ -107,13 +107,16 @@ export const generatePdf = (state: AppState, unit?: Unit): jsPDF => {
     doc.setFont('helvetica', 'normal');
     
     // Red / Blue totals
+    const rLabel = (phase.red.name || "Positive Rail").toUpperCase();
+    const bLabel = (phase.blue.name || "Negative Rail").toUpperCase();
+
     const rText = phase.red.isCutToFit 
-      ? `(+) RED RAIL: ON-SITE-CUT ≯${formatMeasurement(getCutToFitLength(phase.red.totalMm), unit)}` 
-      : `(+) RED RAIL: ${formatMeasurement(phase.red.totalMm, unit)}`;
+      ? `(+) ${rLabel}: ON-SITE-CUT ≯${formatMeasurement(getCutToFitLength(phase.red.totalMm), unit)}` 
+      : `(+) ${rLabel}: ${formatMeasurement(phase.red.totalMm, unit)}`;
     
     const bText = phase.blue.isCutToFit 
-      ? `(-) BLUE RAIL: ${formatMeasurement(getCutToFitLength(phase.blue.totalMm), unit)} *CUT-ON-SITE*` 
-      : `(-) BLUE RAIL: ${formatMeasurement(phase.blue.totalMm, unit)}`;
+      ? `(-) ${bLabel}: ${formatMeasurement(getCutToFitLength(phase.blue.totalMm), unit)} *CUT-ON-SITE*` 
+      : `(-) ${bLabel}: ${formatMeasurement(phase.blue.totalMm, unit)}`;
 
     doc.setTextColor(220, 38, 38); // Red
     doc.text(rText, margin + contentWidth - 5, margin + 15, { align: 'right' });
@@ -125,13 +128,14 @@ export const generatePdf = (state: AppState, unit?: Unit): jsPDF => {
     // CANVAs AREA
     // ==========================================
     const canvasY = margin + 25;
-    const canvasHeight = 123.11; // 277 / 2.25
+    const canvasHeight = contentWidth / (RENDER_CONFIG.DIMS.CANVAS_W / RENDER_CONFIG.DIMS.CANVAS_H);
     
     if (ctx) {
       const fittedPhase = JSON.parse(JSON.stringify(phase));
-      fittedPhase.view.scale = DEFAULT_ZOOM;
-      fittedPhase.view.panX = DEFAULT_PAN_X;
-      fittedPhase.view.panY = DEFAULT_PAN_Y;
+      LayoutMath.calc(fittedPhase);
+      fittedPhase.view.scale = 1.0;
+      fittedPhase.view.panX = 0;
+      fittedPhase.view.panY = 0;
       
       // Clear before drawing
       ctx.clearRect(0, 0, RENDER_CONFIG.DIMS.CANVAS_W, RENDER_CONFIG.DIMS.CANVAS_H);
@@ -175,7 +179,7 @@ export const generatePdf = (state: AppState, unit?: Unit): jsPDF => {
     // Notes Title
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('TECHNICIAN NOTES & INSTRUCTIONS:', margin + 3, notesY + 5);
+    doc.text('NOTES & DETAILS:', margin + 3, notesY + 5);
     
     // Divider line for notes box
     doc.line(margin + 75, notesY, margin + 75, notesY + notesHeight);
@@ -184,7 +188,6 @@ export const generatePdf = (state: AppState, unit?: Unit): jsPDF => {
     doc.setFontSize(9);
     
     // Feature Checkmarks
-    const isStartZero = state.isRTL ? !!state.indicatorsFlipped : !state.indicatorsFlipped;
     const printParts = [
       { name: 'CIS', start: phase.cis?.start, end: phase.cis?.end },
       { name: 'ISO', start: phase.iso?.start, end: phase.iso?.end },
@@ -194,21 +197,19 @@ export const generatePdf = (state: AppState, unit?: Unit): jsPDF => {
     
     const checkmarks: string[] = [];
     printParts.forEach(part => {
-      const side0Yes = isStartZero ? part.start : part.end;
-      const side1Yes = isStartZero ? part.end : part.start;
-      if (side0Yes) checkmarks.push(`0-SIDE ${part.name}: YES`);
-      if (side1Yes) checkmarks.push(`1-SIDE ${part.name}: YES`);
+      const count = (part.start ? 1 : 0) + (part.end ? 1 : 0);
+      if (count > 0) checkmarks.push(`${part.name}: ${count} Set`);
     });
 
-    const has1Lug = phase.lugs.some(l => l.type === '1');
-    const has5Lug = phase.lugs.some(l => l.type === '5');
-    const hasGround = phase.lugs.some(l => l.type === 'ground');
-    const hasBlueLight = phase.lugs.some(l => l.type === 'blue-light');
+    const count1Lug = phase.lugs.filter(l => l.type === '1').length;
+    const count5Lug = phase.lugs.filter(l => l.type === '5').length;
+    const countGround = phase.lugs.filter(l => l.type === 'ground').length;
+    const countBlueLight = phase.lugs.filter(l => l.type === 'blue-light').length;
 
-    if (has1Lug) checkmarks.push('1-LUG: YES');
-    if (has5Lug) checkmarks.push('5-LUG: YES');
-    if (hasGround) checkmarks.push('GS CABLE: YES');
-    if (hasBlueLight) checkmarks.push('BLUE LIGHT: YES');
+    if (count1Lug > 0) checkmarks.push(`1-LUG: ${count1Lug} Set`);
+    if (count5Lug > 0) checkmarks.push(`5-LUG: ${count5Lug} Set`);
+    if (countGround > 0) checkmarks.push(`GS CABLE: ${countGround} Set`);
+    if (countBlueLight > 0) checkmarks.push(`BLUE LIGHT: ${countBlueLight} Set`);
 
     let featureYStart = notesY + 12;
     checkmarks.forEach((stmt, index) => {
